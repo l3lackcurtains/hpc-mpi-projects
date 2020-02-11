@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   if (nprocs<3)
   {
     if (my_rank==0)
-    printf("\nRun with at least 3 ranks.\n\n");
+      printf("\nRun with at least 3 ranks.\n\n");
     MPI_Finalize();
     return 0;
   }
@@ -37,9 +37,40 @@ int main(int argc, char **argv) {
   srand(SEED+my_rank);
 
 
-  //WRITE CODE HERE  
+  // WRITE CODE HERE  
+  int next_rank;
+  int counter;
 
-  
+  if(my_rank == 0) {
+    MPI_Request request;
+    MPI_Status status;
+
+    next_rank = generateRandomRank(nprocs - 1, my_rank);
+    printf("Master: first rank: %d \n", next_rank);
+    
+    counter = 0;
+    MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
+
+  } else {
+      
+      MPI_Status status;
+      MPI_Request request;
+      
+      MPI_Irecv(&counter, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &request);
+      MPI_Wait(&request, &status);
+
+      printf("My rank: %d, old counter: %d \n", my_rank, counter);
+      
+      counter = counter + my_rank;
+      printf("My rank: %d, new counter: %d \n", my_rank, counter);
+
+      next_rank = generateRandomRank(nprocs - 1, my_rank);
+      printf("My rank: %d, next to recv: %d \n", my_rank, next_rank);
+
+      
+      MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
+
+  }   
 
   MPI_Finalize();
   return 0;

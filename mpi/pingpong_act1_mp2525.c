@@ -40,10 +40,10 @@ int main(int argc, char **argv) {
   // 5 times back and forth process
   for(int i = 0; i < ping_pong_limit; i++) {
     
-    if(my_rank % 2 == 0) {
+    int to_increment;
+    MPI_Status status;
 
-      int to_increment;
-      MPI_Status status;
+    if(my_rank % 2 == 0) {
 
       MPI_Send(&my_rank, 1, MPI_INT, my_rank + 1, 0, MPI_COMM_WORLD);
 
@@ -53,9 +53,6 @@ int main(int argc, char **argv) {
       ping_pong_count += to_increment;
 
     } else {
-
-      int to_increment;
-      MPI_Status status;
 
       MPI_Recv(&to_increment, 1, MPI_INT, my_rank - 1, 0, MPI_COMM_WORLD, &status);
       
