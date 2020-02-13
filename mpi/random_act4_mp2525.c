@@ -41,11 +41,12 @@ int main(int argc, char **argv) {
   int next_rank;
   int counter;
 
+  next_rank = generateRandomRank(nprocs - 1, my_rank);
+
   if(my_rank == 0) {
     MPI_Request request;
     MPI_Status status;
 
-    next_rank = generateRandomRank(nprocs - 1, my_rank);
     printf("Master: first rank: %d \n", next_rank);
     
     counter = 0;
