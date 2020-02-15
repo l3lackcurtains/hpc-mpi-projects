@@ -49,6 +49,7 @@ int main(int argc, char ** argv) {
 
     if (my_rank == 0) {
 
+      
       if (iteration == 0) {
 
         printf("Master: first rank: %d \n", next_rank);
@@ -57,9 +58,9 @@ int main(int argc, char ** argv) {
         counter = 0;
         MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
 
-        // Broadcast it's next rank to other ranks as new rank
+        // Update next and previous rank
         new_rank = next_rank;
-        MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        prev_rank = 0;
 
       } else {
 
@@ -67,16 +68,17 @@ int main(int argc, char ** argv) {
         MPI_Request request1, request2;
 
         // Receive previous and next rank of the new node for broadcasting
-        MPI_Irecv(&prev_rank, 1, MPI_INT, new_rank, 1, MPI_COMM_WORLD, &request1);
+        MPI_Irecv(&prev_rank, 1, MPI_INT, new_rank, 1, MPI_COMM_WORLD,&request1);
         MPI_Wait(&request1, &status1);
 
-        MPI_Irecv(&new_rank, 1, MPI_INT, new_rank, 2, MPI_COMM_WORLD, &request2);
+        MPI_Irecv(&new_rank, 1, MPI_INT, new_rank, 2, MPI_COMM_WORLD,&request2);
         MPI_Wait(&request2, &status2);
 
-        // Broadcast the new rank to all ranks
-        MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
-       
       }
+
+      // Broadcast the new rank to all ranks
+      MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
     } else {
 
       MPI_Status status;

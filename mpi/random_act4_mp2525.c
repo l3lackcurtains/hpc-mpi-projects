@@ -57,9 +57,9 @@ int main(int argc, char ** argv) {
         counter = 0;
         MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
 
-        // Broadcast it's next rank to other ranks as new rank
+        // Update next and previous rank
         new_rank = next_rank;
-        MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        prev_rank = 0;
 
       } else {
 
@@ -68,83 +68,55 @@ int main(int argc, char ** argv) {
 
         // Receive previous and next rank of the new node for broadcasting
         MPI_Irecv(&prev_rank, 1, MPI_INT, new_rank, 1, MPI_COMM_WORLD,&request1);
-        MPI_Wait(&request1,&status1);
+        MPI_Wait(&request1, &status1);
 
         MPI_Irecv(&new_rank, 1, MPI_INT, new_rank, 2, MPI_COMM_WORLD,&request2);
-        MPI_Wait(&request2,&status2);
+        MPI_Wait(&request2, &status2);
 
-        // Broadcast the new rank to all ranks
-        MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-        // Send previous rank to the new rank
-        MPI_Send(&prev_rank, 1, MPI_INT, new_rank, 3, MPI_COMM_WORLD);
-        
       }
+
+      // Broadcast the new rank to all ranks
+      MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+      // Send previous rank to the new rank
+      MPI_Send(&prev_rank, 1, MPI_INT, new_rank, 3, MPI_COMM_WORLD);
+
     } else {
 
       MPI_Status status0, status1;
       MPI_Request request0, request1;
 
-      if (iteration == 0) {
 
-        // Receive new rank from rank 0
-        MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      // Receive new rank from rank 0
+      MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-        // Run this block only on the new rank
-        if (my_rank == new_rank) {
+      // Run this block only on the new rank
+      if (my_rank == new_rank) {
+    
+        // Receive previous rank of this rank from rank 0
+        MPI_Irecv(&prev_rank, 1, MPI_INT, 0, 3, MPI_COMM_WORLD,&request0);
+        MPI_Wait(&request0, &status0);
 
-          // Receive counter from rank 0
-          MPI_Irecv(&counter, 1, MPI_INT, 0, 0, MPI_COMM_WORLD,&request0);
-          MPI_Wait(&request0,&status0);
+        // Receive the counter send by previous rank
+        MPI_Irecv(&counter, 1, MPI_INT, prev_rank, 0, MPI_COMM_WORLD,&request1);
+        MPI_Wait(&request1, &status1);
 
-          printf("My rank: %d, old counter: %d \n", my_rank, counter);
+        printf("My rank: %d, old counter: %d \n", my_rank, counter);
 
-          // Send new counter to next rank
-          counter = counter + my_rank;
-          printf("My rank: %d, new counter: %d \n", my_rank, counter);
-          printf("My rank: %d, next to recv: %d \n", my_rank, next_rank);
-          MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
+        // Send new counter to next rank
+        counter = counter + my_rank;
+        printf("My rank: %d, new counter: %d \n", my_rank, counter);
+        printf("My rank: %d, next to recv: %d \n", my_rank, next_rank);
+        MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
 
-          // Send it's previous and next rank to rank 0 for broadcasting
-          prev_rank = my_rank;
-          new_rank = next_rank;
-          MPI_Send(&prev_rank, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-          MPI_Send(&new_rank, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
+        // Send it's previous and next rank to rank 0 for broadcasting
+        prev_rank = my_rank;
+        new_rank = next_rank;
+        MPI_Send(&prev_rank, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+        MPI_Send(&new_rank, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
 
-        }
-
-      } else {
-
-        // Receive new rank from rank 0
-        MPI_Bcast(&new_rank, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-        // Run this block only on the new rank
-        if (my_rank == new_rank) {
-          
-          // Receive previous rank of this rank from rank 0
-          MPI_Irecv(&prev_rank, 1, MPI_INT, 0, 3, MPI_COMM_WORLD,&request0);
-          MPI_Wait(&request0,&status0);
-
-          // Receive the counter send by previous rank
-          MPI_Irecv(&counter, 1, MPI_INT, prev_rank, 0, MPI_COMM_WORLD,&request1);
-          MPI_Wait(&request1,&status1);
-
-          printf("My rank: %d, old counter: %d \n", my_rank, counter);
-
-          // Send new counter to next rank
-          counter = counter + my_rank;
-          printf("My rank: %d, new counter: %d \n", my_rank, counter);
-          printf("My rank: %d, next to recv: %d \n", my_rank, next_rank);
-          MPI_Send(&counter, 1, MPI_INT, next_rank, 0, MPI_COMM_WORLD);
-
-          // Send it's previous and next rank to rank 0 for broadcasting
-          prev_rank = my_rank;
-          new_rank = next_rank;
-          MPI_Send(&prev_rank, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-          MPI_Send(&new_rank, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);
-
-        }
       }
+      
     }
 
   }
