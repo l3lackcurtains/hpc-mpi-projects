@@ -14,6 +14,7 @@
 
 // function prototypes
 int importDataset(char *fname, int DIM, int N, double **dataset);
+void sequentialDistanceMatrixCalculation(double **dataset, int N, int DIM);
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -76,7 +77,6 @@ int main(int argc, char **argv) {
   int *rowRanges;
   int *localRowRanges;
   double **distanceMatrix;
-  double **sequentialDistanceMatrix;
 
   // Allocate memory for rowRanges and assign values in rank 0
   rowRanges = (int *)malloc(sizeof(int) * N);
@@ -95,13 +95,7 @@ int main(int argc, char **argv) {
     distanceMatrix[i] = (double *)malloc(sizeof(double) * N);
   }
 
-  // allocate memory for sequential distance matrix
-  sequentialDistanceMatrix = (double **)malloc(sizeof(double *) * N);
-  for (int i = 0; i < N; i++) {
-    sequentialDistanceMatrix[i] = (double *)malloc(sizeof(double) * N);
-  }
-
-  // Print the dataset
+ // Print the dataset
   if (my_rank == 0) {
     printf("\nThe dataset is: \n");
     for (int i = 0; i < N; i++) {
@@ -113,39 +107,11 @@ int main(int argc, char **argv) {
   }
 
   if (my_rank == 0) {
-    // Sequential distance matrix calculation
-    for (int i = 0; i < N; i++) {
-      for (int j = 0; j < N; j++) {
-        double distance = 0;
-        for (int k = 0; k < DIM; k++) {
-          distance +=
-              (dataset[i][k] - dataset[j][k]) * (dataset[i][k] - dataset[j][k]);
-        }
-        sequentialDistanceMatrix[i][j] = sqrt(distance);
-      }
-    }
 
-    // Print sequential distance matrix
-    printf("\nSequential Distance Matrix: \n");
-    for (int i = 0; i < N; i++) {
-      for (int j = 0; j < N; j++) {
-        printf("%.6f ", sequentialDistanceMatrix[i][j]);
-      }
-      printf("\n");
-    }
+    sequentialDistanceMatrixCalculation(dataset, N, DIM);
 
-    double seqGlobalSum = 0;
-    // Calculate sequential global sum
-    for (int i = 0; i < N; i++) {
-      for (int j = 0; j < N; j++) {
-        seqGlobalSum += sequentialDistanceMatrix[i][j];
-      }
-    }
-    printf("Sequential Global Sum is %0.3f\n", seqGlobalSum);
-  }
-
-  if (my_rank == 0) {
     printf("\nScatter Row ranges information to all ranks! \n\n");
+    
   }
 
   MPI_Scatter(rowRanges, N / nprocs, MPI_INT, localRowRanges, N / nprocs,
@@ -203,19 +169,58 @@ int main(int argc, char **argv) {
     free(distanceMatrix[i]);
   }
 
-  for (int i = 0; i < N; i++) {
-    free(sequentialDistanceMatrix[i]);
-  }
-
   free(dataset);
   free(rowRanges);
   free(localRowRanges);
   free(distanceMatrix);
-  free(sequentialDistanceMatrix);
+  
 
   MPI_Finalize();
 
   return 0;
+}
+
+void sequentialDistanceMatrixCalculation(double **dataset, int N, int DIM) {
+    double **sequentialDistanceMatrix;
+  // allocate memory for sequential distance matrix
+    sequentialDistanceMatrix = (double **)malloc(sizeof(double *) * N);
+    for (int i = 0; i < N; i++) {
+      sequentialDistanceMatrix[i] = (double *)malloc(sizeof(double) * N);
+    }
+    // Sequential distance matrix calculation
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++) {
+        double distance = 0;
+        for (int k = 0; k < DIM; k++) {
+          distance +=
+              (dataset[i][k] - dataset[j][k]) * (dataset[i][k] - dataset[j][k]);
+        }
+        sequentialDistanceMatrix[i][j] = sqrt(distance);
+      }
+    }
+
+    // Print sequential distance matrix
+    printf("\nSequential Distance Matrix: \n");
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++) {
+        printf("%.6f ", sequentialDistanceMatrix[i][j]);
+      }
+      printf("\n");
+    }
+
+    double seqGlobalSum = 0;
+    // Calculate sequential global sum
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++) {
+        seqGlobalSum += sequentialDistanceMatrix[i][j];
+      }
+    }
+    printf("Sequential Global Sum is %0.3f\n", seqGlobalSum);
+
+    for (int i = 0; i < N; i++) {
+      free(sequentialDistanceMatrix[i]);
+    }
+    free(sequentialDistanceMatrix);
 }
 
 int importDataset(char *fname, int DIM, int N, double **dataset) {
