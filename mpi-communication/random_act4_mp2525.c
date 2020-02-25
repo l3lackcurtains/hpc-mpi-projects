@@ -83,8 +83,8 @@ int main(int argc, char ** argv) {
 
     } else {
 
-      MPI_Status status0, status1;
-      MPI_Request request0, request1;
+      MPI_Status status1, status2;
+      MPI_Request request1, request2;
 
 
       // Receive new rank from rank 0
@@ -94,12 +94,12 @@ int main(int argc, char ** argv) {
       if (my_rank == new_rank) {
     
         // Receive previous rank of this rank from rank 0
-        MPI_Irecv(&prev_rank, 1, MPI_INT, 0, 3, MPI_COMM_WORLD,&request0);
-        MPI_Wait(&request0, &status0);
+        MPI_Irecv(&prev_rank, 1, MPI_INT, 0, 3, MPI_COMM_WORLD,&request1);
+        MPI_Wait(&request1, &status1);
 
         // Receive the counter send by previous rank
-        MPI_Irecv(&counter, 1, MPI_INT, prev_rank, 0, MPI_COMM_WORLD,&request1);
-        MPI_Wait(&request1, &status1);
+        MPI_Irecv(&counter, 1, MPI_INT, prev_rank, 0, MPI_COMM_WORLD,&request2);
+        MPI_Wait(&request2, &status2);
 
         printf("My rank: %d, old counter: %d \n", my_rank, counter);
 
