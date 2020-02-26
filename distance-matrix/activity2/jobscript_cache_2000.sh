@@ -11,6 +11,6 @@
 
 module load openmpi
 
-mpicc -O3 distance_matrix_metrics_cache.c.c -lm -o distance_matrix_metrics_cache.c.out -std=c99
+mpicc -O3 distance_matrix_metrics_cache.c -lm -o distance_matrix_metrics_cache.out -std=c99
 
-srun distance_matrix_metrics_cache.c.out 10000 90 2000 MSD_year_prediction_normalize_0_1_100k.txt
+srun distance_matrix_metrics_cache.out 10000 90 2000 MSD_year_prediction_normalize_0_1_100k.txt
