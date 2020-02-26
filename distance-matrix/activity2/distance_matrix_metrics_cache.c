@@ -83,13 +83,15 @@ int main(int argc, char **argv) {
     sequentialDistanceMatrixCalculation(dataset, N, DIM);
     
     t2 = MPI_Wtime();
-    printf("## Without Tile\nSequential Distance Matrix calculation time: %f seconds\n",
+
+    printf("\n## Without Tile\nSequential Distance Matrix calculation time: %f seconds\n",
            t2 - t1);
 
     t3 = MPI_Wtime();
     sequentialDistanceMatrixCalculationWithTile(dataset, N, DIM, b);
     t4 = MPI_Wtime();
-    printf("## With Tile\nSequential Distance Matrix calculation time: %f seconds\n",
+
+    printf("\n## With Tile\nSequential Distance Matrix calculation time: %f seconds\n",
            t4 - t3);
   }
 
@@ -189,8 +191,8 @@ int main(int argc, char **argv) {
 
     t6 = MPI_Wtime();
     
-    printf("## Without Tile: \n");
-    printf("Parallel Distance Matrix calculation time: %f seconds\n", t6 - t5);
+        printf("Parallel Distance Matrix calculation time: %f seconds\n", t6 - t5);
+    printf("\n## Without Tile: \n");
 
     printf("Parallel Speed Up: %f\n", (t2 - t1) / (t6 - t5));
 
@@ -198,8 +200,7 @@ int main(int argc, char **argv) {
 
 
     
-    printf("## With Tile: \n");
-    printf("Parallel Distance Matrix calculation time: %f seconds\n", t6 - t5);
+    printf("\n## With Tile: \n");
 
     printf("Parallel Speed Up: %f\n", (t4 - t3) / (t6 - t5));
 
