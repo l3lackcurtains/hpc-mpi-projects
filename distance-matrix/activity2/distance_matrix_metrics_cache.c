@@ -15,6 +15,7 @@
 // function prototypes
 int importDataset(char *fname, int DIM, int N, double **dataset);
 void sequentialDistanceMatrixCalculation(double **dataset, int N, int DIM);
+void sequentialDistanceMatrixCalculationWithTile(double **dataset, int N, int DIM, int b);
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
