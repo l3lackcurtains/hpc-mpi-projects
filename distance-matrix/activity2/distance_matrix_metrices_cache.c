@@ -26,9 +26,10 @@ int main(int argc, char **argv) {
   // Process command-line arguments
   int N;
   int DIM;
+  int b;
   char inputFname[500];
 
-  if (argc != 4) {
+  if (argc != 5) {
     fprintf(stderr,
             "Please provide the following on the command line: N (number of "
             "lines in the file), dimensionality (number of coordinates per "
@@ -40,7 +41,8 @@ int main(int argc, char **argv) {
 
   sscanf(argv[1], "%d", &N);
   sscanf(argv[2], "%d", &DIM);
-  strcpy(inputFname, argv[3]);
+  sscanf(argv[3], "%d", &b);
+  strcpy(inputFname, argv[4]);
 
   // pointer to dataset
   double **dataset;
@@ -112,7 +114,6 @@ int main(int argc, char **argv) {
   MPI_Scatter(rowRanges, N / nprocs, MPI_INT, localRowRanges, N / nprocs,
               MPI_INT, 0, MPI_COMM_WORLD);
 
-    int b = 3;
   int rowSize = N / nprocs;
   // Distance matrix calculation
   int bx = b, by = b;
