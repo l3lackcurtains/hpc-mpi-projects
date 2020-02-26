@@ -77,15 +77,16 @@ int main(int argc, char **argv) {
   double t1, t2, t3, t4;
 
   if (my_rank == 0) {
+    
     t1 = MPI_Wtime();
     sequentialDistanceMatrixCalculation(dataset, N, DIM);
     t2 = MPI_Wtime();
+
     printf("Sequential Distance Matrix calculation time: %f seconds\n",
            t2 - t1);
-  }
 
-  if (my_rank == 0) {
     t3 = MPI_Wtime();
+
   }
 
   int *rowRanges;
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
   MPI_Reduce(&localSum, &globalSum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (my_rank == 0) {
-    printf("\nGlobal Sum is: %0.3f\n", globalSum);
+    printf("Global Sum is: %f\n", globalSum);
   }
 
   // free dataset
@@ -198,7 +199,7 @@ void sequentialDistanceMatrixCalculation(double **dataset, int N, int DIM) {
       seqGlobalSum += sequentialDistanceMatrix[i][j];
     }
   }
-  printf("\nSequential Global Sum is %0.3f\n", seqGlobalSum);
+  printf("Sequential Global Sum is %f\n", seqGlobalSum);
 
   for (int i = 0; i < N; i++) {
     free(sequentialDistanceMatrix[i]);

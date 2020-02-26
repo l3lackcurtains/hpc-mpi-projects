@@ -77,19 +77,18 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t3, t4, t5, t6;
+  double t1, t2, t3, t4;
 
   if (my_rank == 0) {
-    t3 = MPI_Wtime();
+
+    t1 = MPI_Wtime();
     sequentialDistanceMatrixCalculationWithTile(dataset, N, DIM, b);
-    t4 = MPI_Wtime();
+    t2 = MPI_Wtime();
 
-    printf("## With Tile\nSequential Distance Matrix calculation time: %f seconds\n",
-           t4 - t3);
-  }
+    printf("Sequential Distance Matrix calculation time: %f seconds\n",
+           t2 - t1);
 
-  if (my_rank == 0) {
-    t5 = MPI_Wtime();
+    t3 = MPI_Wtime();
   }
 
   int *rowRanges;
@@ -116,39 +115,35 @@ int main(int argc, char **argv) {
   MPI_Scatter(rowRanges, N / nprocs, MPI_INT, localRowRanges, N / nprocs,
               MPI_INT, 0, MPI_COMM_WORLD);
 
-  int rowSize = N / nprocs;
+  
   // Distance matrix calculation
-  int bx = b, by = b;
-  int iStart = 0;
-  int jStart = 0;
-  int iEnd = 0;
-  int jEnd = 0;
+  int rowSize = N / nprocs;
+  int bx = b;
+  int by = b;
 
-  if(rowSize < b) {
+  if(rowSize < bx) {
     bx = rowSize;
   }
 
-  while(iStart < rowSize){
-    iEnd += bx;
-    while(jStart < N) {
-      jEnd += by;
-      for(int i = iStart; i < iEnd && i < rowSize; i++) {
-        for(int j = jStart; j < jEnd && j < N; j++) {
+  for(int x = 0; x < rowSize; x+= bx){
+    for(int y = 0; y < N; y+= by) {
+      for(int i = x; i < x + bx && i < rowSize; i++) {
+        for(int j = y; j < y + by && j < N; j++) {
+
           double distance = 0;
+
           for (int k = 0; k < DIM; k++) {
             int localIndex = localRowRanges[i];
 
             distance += (dataset[localIndex][k] - dataset[j][k]) *
                         (dataset[localIndex][k] - dataset[j][k]);
           }
+
           distanceMatrix[i][j] = sqrt(distance);
+
         }
       }
-      jStart = jEnd;
     }
-    iStart = iEnd;
-    jStart = 0;
-    jEnd = 0;
   }
 
   double globalSum;
@@ -163,7 +158,7 @@ int main(int argc, char **argv) {
   MPI_Reduce(&localSum, &globalSum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (my_rank == 0) {
-    printf("\nGlobal Sum is: %0.3f\n\n", globalSum);
+    printf("Global Sum is: %f\n", globalSum);
   }
 
   // free dataset
@@ -182,14 +177,12 @@ int main(int argc, char **argv) {
 
   if (my_rank == 0) {
 
-    t6 = MPI_Wtime();
-    
-    printf("Parallel Distance Matrix calculation time: %f seconds\n", t6 - t5);
+    t4 = MPI_Wtime();
 
-    printf("Parallel Speed Up: %f\n", (t4 - t3) / (t6 - t5));
+    printf("Parallel Distance Matrix calculation time: %f seconds \n", t4 - t3);
+    printf("Parallel Speed Up: %f \n", (t2 - t1) / (t4 - t3));
+    printf("Parallel Effeciency: %f \n", (t2 - t1) / (nprocs * (t4 - t3)));
 
-    printf("Parallel Effeciency: %f\n", (t4 - t3) / (nprocs * (t6 - t5)));
-    
   }
 
   MPI_Finalize();
@@ -204,43 +197,36 @@ void sequentialDistanceMatrixCalculationWithTile(double **dataset, int N, int DI
   for (int i = 0; i < N; i++) {
     sequentialDistanceMatrix[i] = (double *)malloc(sizeof(double) * N);
   }
+
   // Sequential distance matrix calculation
+  for(int x = 0; x < N; x+= b){
+    for(int y = 0; y < N; y+= b) {
+      for(int i = x; i < x + b && i < N; i++) {
+        for(int j = y; j < y + b && j < N; j++) {
 
-  // Distance matrix calculation
-  int iStart = 0;
-  int jStart = 0;
-  int iEnd = 0;
-  int jEnd = 0;
-
-  while(iStart < N){
-    iEnd += b;
-    while(jStart < N) {
-      jEnd += b;
-      for(int i = iStart; i < iEnd && i < N; i++) {
-        for(int j = jStart; j < jEnd && j < N; j++) {
           double distance = 0;
+
           for (int k = 0; k < DIM; k++) {
-        distance +=
-            (dataset[i][k] - dataset[j][k]) * (dataset[i][k] - dataset[j][k]);
-      }
-      sequentialDistanceMatrix[i][j] = sqrt(distance);
+            distance +=
+              (dataset[i][k] - dataset[j][k]) * (dataset[i][k] - dataset[j][k]);
+          }
+
+          sequentialDistanceMatrix[i][j] = sqrt(distance);
+
         }
       }
-      jStart = jEnd;
     }
-    iStart = iEnd;
-    jStart = 0;
-    jEnd = 0;
   }
 
   double seqGlobalSum = 0;
+
   // Calculate sequential global sum
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
       seqGlobalSum += sequentialDistanceMatrix[i][j];
     }
   }
-  printf("\nSequential Global Sum is %0.3f\n", seqGlobalSum);
+  printf("Sequential Global Sum is %f \n", seqGlobalSum);
 
   for (int i = 0; i < N; i++) {
     free(sequentialDistanceMatrix[i]);
