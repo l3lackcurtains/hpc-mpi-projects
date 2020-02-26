@@ -14,8 +14,8 @@
 
 // function prototypes
 int importDataset(char *fname, int DIM, int N, double **dataset);
-void sequentialDistanceMatrixCalculation(double **dataset, int N, int DIM);
 void sequentialDistanceMatrixCalculationWithTile(double **dataset, int N, int DIM, int b);
+
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -77,17 +77,9 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2, t3, t4, t5, t6;
+  double t3, t4, t5, t6;
 
   if (my_rank == 0) {
-    t1 = MPI_Wtime();
-    sequentialDistanceMatrixCalculation(dataset, N, DIM);
-    
-    t2 = MPI_Wtime();
-
-    printf("## Without Tile\nSequential Distance Matrix calculation time: %f seconds\n",
-           t2 - t1);
-
     t3 = MPI_Wtime();
     sequentialDistanceMatrixCalculationWithTile(dataset, N, DIM, b);
     t4 = MPI_Wtime();
@@ -192,16 +184,7 @@ int main(int argc, char **argv) {
 
     t6 = MPI_Wtime();
     
-        printf("Parallel Distance Matrix calculation time: %f seconds\n", t6 - t5);
-    printf("\n## Without Tile: \n");
-
-    printf("Parallel Speed Up: %f\n", (t2 - t1) / (t6 - t5));
-
-    printf("Parallel Effeciency: %f\n", (t2 - t1) / (nprocs * (t6 - t5)));
-
-
-    
-    printf("\n## With Tile: \n");
+    printf("Parallel Distance Matrix calculation time: %f seconds\n", t6 - t5);
 
     printf("Parallel Speed Up: %f\n", (t4 - t3) / (t6 - t5));
 
@@ -212,40 +195,6 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 
   return 0;
-}
-
-void sequentialDistanceMatrixCalculation(double **dataset, int N, int DIM) {
-  double **sequentialDistanceMatrix;
-  // allocate memory for sequential distance matrix
-  sequentialDistanceMatrix = (double **)malloc(sizeof(double *) * N);
-  for (int i = 0; i < N; i++) {
-    sequentialDistanceMatrix[i] = (double *)malloc(sizeof(double) * N);
-  }
-  // Sequential distance matrix calculation
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
-      double distance = 0;
-      for (int k = 0; k < DIM; k++) {
-        distance +=
-            (dataset[i][k] - dataset[j][k]) * (dataset[i][k] - dataset[j][k]);
-      }
-      sequentialDistanceMatrix[i][j] = sqrt(distance);
-    }
-  }
-
-  double seqGlobalSum = 0;
-  // Calculate sequential global sum
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
-      seqGlobalSum += sequentialDistanceMatrix[i][j];
-    }
-  }
-  printf("\nSequential Global Sum is %0.3f\n", seqGlobalSum);
-
-  for (int i = 0; i < N; i++) {
-    free(sequentialDistanceMatrix[i]);
-  }
-  free(sequentialDistanceMatrix);
 }
 
 void sequentialDistanceMatrixCalculationWithTile(double **dataset, int N, int DIM, int b) {
@@ -283,20 +232,6 @@ void sequentialDistanceMatrixCalculationWithTile(double **dataset, int N, int DI
     jStart = 0;
     jEnd = 0;
   }
-
-  /*
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
-      double distance = 0;
-      for (int k = 0; k < DIM; k++) {
-        distance +=
-            (dataset[i][k] - dataset[j][k]) * (dataset[i][k] - dataset[j][k]);
-      }
-      sequentialDistanceMatrix[i][j] = sqrt(distance);
-    }
-  }
-
-  */
 
   double seqGlobalSum = 0;
   // Calculate sequential global sum
