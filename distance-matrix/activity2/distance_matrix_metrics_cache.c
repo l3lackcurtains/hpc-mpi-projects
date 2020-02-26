@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
     iEnd += bx;
     while(jStart < N) {
       jEnd += by;
-      for(int i = iStart; i < iEnd && i < N; i++) {
+      for(int i = iStart; i < iEnd && i < rowSize; i++) {
         for(int j = jStart; j < jEnd && j < N; j++) {
           double distance = 0;
           for (int k = 0; k < DIM; k++) {
