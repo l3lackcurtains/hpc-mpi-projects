@@ -3,7 +3,7 @@
 #BATCH --job-name=distance_matrix_metrics        
 #SBATCH --output=/scratch/mp2525/distance_matrix_metrics.txt	
 #SBATCH --error=/scratch/mp2525/distance_matrix_metrics.err
-#SBATCH --time=20:00
+#SBATCH --time=02:00
 #SBATCH --mem=2000 
 #SBATCH --nodes=1
 #SBATCH --ntasks=8 
