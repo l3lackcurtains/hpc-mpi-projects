@@ -84,14 +84,14 @@ int main(int argc, char **argv) {
     
     t2 = MPI_Wtime();
 
-    printf("\n## Without Tile\nSequential Distance Matrix calculation time: %f seconds\n",
+    printf("## Without Tile\nSequential Distance Matrix calculation time: %f seconds\n",
            t2 - t1);
 
     t3 = MPI_Wtime();
     sequentialDistanceMatrixCalculationWithTile(dataset, N, DIM, b);
     t4 = MPI_Wtime();
 
-    printf("\n## With Tile\nSequential Distance Matrix calculation time: %f seconds\n",
+    printf("## With Tile\nSequential Distance Matrix calculation time: %f seconds\n",
            t4 - t3);
   }
 
@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
   MPI_Reduce(&localSum, &globalSum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (my_rank == 0) {
-    printf("\nGlobal Sum is: %0.3f\n", globalSum);
+    printf("\nGlobal Sum is: %0.3f\n\n", globalSum);
   }
 
   // free dataset
