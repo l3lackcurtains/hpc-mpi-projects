@@ -14,4 +14,4 @@ module load openmpi
 
 mpicc -O3 distance_act2_mp2525.c -lm -o distance_act2_mp2525.out -std=c99
 
-srun distance_act2_mp2525.out 10000 90 1000 MSD_year_prediction_normalize_0_1_100k.txt
+srun distance_act2_mp2525.out 10000 90 1000 ../MSD_year_prediction_normalize_0_1_100k.txt
