@@ -123,21 +123,20 @@ int main(int argc, char **argv) {
   }
   
   // Distance matrix calculation
-  int rowSize = N / nprocs;
   int bx = b;
   int by = b;
 
   // Resize Rowsize if it is less than bx
-  if(rowSize < bx) {
-    bx = rowSize;
+  if(localRowSize < bx) {
+    bx = localRowSize;
   }
 
   // Loop with step size of bx
-  for(int x = 0; x < rowSize; x+= bx){
+  for(int x = 0; x < localRowSize; x+= bx){
     // Loop with step size of by
     for(int y = 0; y < N; y+= by) {
       // Loop through row of matrix
-      for(int i = x; i < x + bx && i < rowSize; i++) {
+      for(int i = x; i < x + bx && i < localRowSize; i++) {
         // loop through column of matrix
         for(int j = y; j < y + by && j < N; j++) {
           double distance = 0;
