@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
 
   // allocate memory for distance matrix
   distanceMatrix = (double **)malloc(sizeof(double *) * (N / nprocs));
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     distanceMatrix[i] = (double *)malloc(sizeof(double) * N);
   }
   
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
   double localSum = 0;
 
   // calculate the local sum in all ranks
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     for (int j = 0; j < N; j++) {
       localSum += distanceMatrix[i][j];
     }
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
   }
   free(dataset);
 
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     free(distanceMatrix[i]);
   }
   free(distanceMatrix);

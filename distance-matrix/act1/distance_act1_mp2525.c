@@ -92,12 +92,27 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Allocate memory for local row ranges
-  localRowRanges = (int *)malloc(sizeof(int) * (N / nprocs));
+  // Resize local row size based on divisibility of N points to number of processors
+  int localRowSize = N / nprocs;
+  if(N % nprocs != 0 && my_rank == nprocs - 1) {
+    localRowSize = N / nprocs + N % nprocs;
+    // Allocate memory for local row ranges of last rank
+    localRowRanges = (int *)malloc(sizeof(int) * localRowSize);
+  } else {
+    // Allocate memory for local row ranges of other ranks
+    localRowRanges = (int *)malloc(sizeof(int) * localRowSize);
+  }
 
   // Scatter row ranges information to all the ranks
   MPI_Scatter(rowRanges, N / nprocs, MPI_INT, localRowRanges, N / nprocs,
               MPI_INT, 0, MPI_COMM_WORLD);
+  
+  // increase local row range size of last rank
+  if(N % nprocs != 0 && my_rank == nprocs - 1) {
+    for(int i = N / nprocs ; i < localRowSize; i++) {
+      localRowRanges[i] = localRowRanges[i - 1] + 1;
+    }
+  }
   
   // allocate memory for distance matrix
   distanceMatrix = (double **)malloc(sizeof(double *) * (N / nprocs));
@@ -107,7 +122,7 @@ int main(int argc, char **argv) {
 
   // calculate distance matrix
   // Loop through row of matrix
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     // loop through column of matrix
     for (int j = 0; j < N; j++) {
       double distance = 0;
@@ -127,7 +142,7 @@ int main(int argc, char **argv) {
   double localSum = 0;
 
   // calculate the local sum in all ranks
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     for (int j = 0; j < N; j++) {
       localSum += distanceMatrix[i][j];
     }
@@ -148,7 +163,7 @@ int main(int argc, char **argv) {
   free(dataset);
 
   // free distance matrix
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     free(distanceMatrix[i]);
   }
   free(distanceMatrix);
