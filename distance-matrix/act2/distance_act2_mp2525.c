@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
   }
 
   // allocate memory for distance matrix
-  distanceMatrix = (double **)malloc(sizeof(double *) * (N / nprocs));
+  distanceMatrix = (double **)malloc(sizeof(double *) * localRowSize);
   for (int i = 0; i < localRowSize; i++) {
     distanceMatrix[i] = (double *)malloc(sizeof(double) * N);
   }
