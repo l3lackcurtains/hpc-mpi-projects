@@ -9,7 +9,7 @@
 // mpicc distance_matrix_starter.c -lm -o distance_matrix_starter
 
 // Example execution
-// mpirun -np 1 -hostfile myhostfile.txt ./distance_matrix_starter 100000 90
+// mpirun -np 1 -hostfile myhostfile.txt ./distance_matrix_starter 10000 90
 // MSD_year_prediction_normalize_0_1_100k.txt
 
 // function prototypes
