@@ -15,6 +15,7 @@
 // function prototypes
 int importDataset(char *fname, int N, double **dataset);
 
+
 int main(int argc, char **argv) {
   int my_rank, nprocs;
 
@@ -25,9 +26,10 @@ int main(int argc, char **argv) {
   // Process command-line arguments
   int N;
   int DIM;
+  int b;
   char inputFname[500];
 
-  if (argc != 4) {
+  if (argc != 5) {
     fprintf(stderr,
             "Please provide the following on the command line: N (number of "
             "lines in the file), dimensionality (number of coordinates per "
@@ -39,7 +41,8 @@ int main(int argc, char **argv) {
 
   sscanf(argv[1], "%d", &N);
   sscanf(argv[2], "%d", &DIM);
-  strcpy(inputFname, argv[3]);
+  sscanf(argv[3], "%d", &b);
+  strcpy(inputFname, argv[4]);
 
   // pointer to dataset
   double **dataset;
@@ -73,20 +76,8 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  // Print the dataset
-  if (my_rank == 0) {
-    printf("\nThe dataset is: \n");
-    for (int i = 0; i < N; i++) {
-      for (int j = 0; j < DIM; j++) {
-        printf("%.1f ", dataset[i][j]);
-      }
-      printf("\n");
-    }
-  }
-
   double t1, t2;
 
-  // Start calculating the time
   if (my_rank == 0) {
     t1 = MPI_Wtime();
   }
@@ -103,54 +94,48 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Resize local row size based on divisibility of N points to number of processors
-  int localRowSize = N / nprocs;
-  if(N % nprocs != 0 && my_rank == nprocs - 1) {
-    localRowSize = N / nprocs + N % nprocs;
-    // Allocate memory for local row ranges of last rank
-    localRowRanges = (int *)malloc(sizeof(int) * localRowSize);
-  } else {
-    // Allocate memory for local row ranges of other ranks
-    localRowRanges = (int *)malloc(sizeof(int) * localRowSize);
-  }
+  // Allocate memory for local row ranges
+  localRowRanges = (int *)malloc(sizeof(int) * (N / nprocs));
 
-  // Scatter row ranges information to all the ranks
+  // Scatter information about row ranges to all the ranks
   MPI_Scatter(rowRanges, N / nprocs, MPI_INT, localRowRanges, N / nprocs,
-              MPI_INT, 0, MPI_COMM_WORLD);
-  
-  // increase local row range size of last rank
-  if(N % nprocs != 0 && my_rank == nprocs - 1) {
-    for(int i = N / nprocs ; i < localRowSize; i++) {
-      localRowRanges[i] = localRowRanges[i - 1] + 1;
-    }
-  }
-  
+            MPI_INT, 0, MPI_COMM_WORLD);
+
   // allocate memory for distance matrix
-  distanceMatrix = (double **)malloc(sizeof(double *) * (localRowSize));
-  for (int i = 0; i < localRowSize; i++) {
+  distanceMatrix = (double **)malloc(sizeof(double *) * (N / nprocs));
+  for (int i = 0; i < N / nprocs; i++) {
     distanceMatrix[i] = (double *)malloc(sizeof(double) * N);
   }
+  
+  // Distance matrix calculation
+  int rowSize = N / nprocs;
+  int bx = b;
+  int by = b;
 
-  // calculate distance matrix
-  for (int i = 0; i < localRowSize; i++) {
-    for (int j = 0; j < N; j++) {
-      double distance = 0;
-      for (int k = 0; k < DIM; k++) {
-        int localIndex = localRowRanges[i];
-
-        distance += (dataset[localIndex][k] - dataset[j][k]) *
-                    (dataset[localIndex][k] - dataset[j][k]);
-      }
-      distanceMatrix[i][j] = sqrt(distance);
-    }
+  // Resize Rowsize if it is less than bx
+  if(rowSize < bx) {
+    bx = rowSize;
   }
 
-  printf("Distance Matrix Value of rank %d: \n", my_rank);
-  for (int i = 0; i < localRowSize; i++) {
-    for (int j = 0; j < N; j++) {
-      printf("%.6f ", distanceMatrix[i][j]);
+  // Loop with step size of bx
+  for(int x = 0; x < rowSize; x+= bx){
+    // Loop with step size of by
+    for(int y = 0; y < N; y+= by) {
+      // Loop through row of matrix
+      for(int i = x; i < x + bx && i < rowSize; i++) {
+        // loop through column of matrix
+        for(int j = y; j < y + by && j < N; j++) {
+          double distance = 0;
+          // Loop through dimention of matrix for distance calculation
+          for (int k = 0; k < DIM; k++) {
+            int localIndex = localRowRanges[i];
+            distance += (dataset[localIndex][k] - dataset[j][k]) *
+                        (dataset[localIndex][k] - dataset[j][k]);
+          }
+          distanceMatrix[i][j] = sqrt(distance);
+        }
+      }
     }
-    printf("\n");
   }
 
   // Declare and initialize global and local sum
@@ -158,7 +143,7 @@ int main(int argc, char **argv) {
   double localSum = 0;
 
   // calculate the local sum in all ranks
-  for (int i = 0; i < localRowSize; i++) {
+  for (int i = 0; i < N / nprocs; i++) {
     for (int j = 0; j < N; j++) {
       localSum += distanceMatrix[i][j];
     }
@@ -178,8 +163,7 @@ int main(int argc, char **argv) {
   }
   free(dataset);
 
-  // free distance matrix
-  for (int i = 0; i < localRowSize; i++) {
+  for (int i = 0; i < N / nprocs; i++) {
     free(distanceMatrix[i]);
   }
   free(distanceMatrix);
@@ -188,10 +172,10 @@ int main(int argc, char **argv) {
   free(rowRanges);
   free(localRowRanges);
   
-  // Calculate the time elapsed in rank 0
+  // Calculate and print the time elapsed in rank 0
   if (my_rank == 0) {
     t2 = MPI_Wtime();
-    printf("Parallel Distance Matrix calculation time: %f seconds\n", t2 - t1);
+    printf("Parallel Distance Matrix calculation time: %f seconds \n", t2 - t1);
   }
 
   MPI_Finalize();
