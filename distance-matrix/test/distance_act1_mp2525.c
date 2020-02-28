@@ -159,6 +159,12 @@ int main(int argc, char **argv) {
     printf("\n");
   }
 
+   // Calculate the time elapsed in rank 0
+  if (my_rank == 0) {
+    tend = MPI_Wtime();
+    printf("\n\nParallel Distance Matrix calculation time: %f seconds\n", tend - tstart);
+  }
+
   // Declare and initialize global and local sum
   double globalSum;
   double localSum = 0;
@@ -194,12 +200,6 @@ int main(int argc, char **argv) {
   free(rowRanges);
   free(localRowRanges);
   
-  // Calculate the time elapsed in rank 0
-  if (my_rank == 0) {
-    tend = MPI_Wtime();
-    printf("\n\nParallel Distance Matrix calculation time: %f seconds\n", tend - tstart);
-  }
-
   MPI_Finalize();
 
   return 0;
