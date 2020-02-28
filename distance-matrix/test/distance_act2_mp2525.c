@@ -76,10 +76,21 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2;
+  // Print the dataset
+  if (my_rank == 0) {
+    printf("\nThe dataset is: \n");
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < DIM; j++) {
+        printf("%.1f ", dataset[i][j]);
+      }
+      printf("\n");
+    }
+  }
+
+  double tstart, tend;
 
   if (my_rank == 0) {
-    t1 = MPI_Wtime();
+    tstart= MPI_Wtime();
   }
 
   int *rowRanges;
@@ -94,35 +105,55 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Allocate memory for local row ranges
-  localRowRanges = (int *)malloc(sizeof(int) * (N / nprocs));
+  // Resize local row size based on divisibility of N points to number of processors
+  int localRowSize = N / nprocs;
+  if(N % nprocs != 0 && my_rank == nprocs - 1) {
+    localRowSize = N / nprocs + N % nprocs;
+    // Allocate memory for local row ranges of last rank
+    localRowRanges = (int *)malloc(sizeof(int) * localRowSize);
+  } else {
+    // Allocate memory for local row ranges of other ranks
+    localRowRanges = (int *)malloc(sizeof(int) * localRowSize);
+  }
 
-  // Scatter information about row ranges to all the ranks
+  // Scatter row ranges information to all the ranks
   MPI_Scatter(rowRanges, N / nprocs, MPI_INT, localRowRanges, N / nprocs,
-            MPI_INT, 0, MPI_COMM_WORLD);
+              MPI_INT, 0, MPI_COMM_WORLD);
+  
+  // increase local row range size of last rank
+  if(N % nprocs != 0 && my_rank == nprocs - 1) {
+    for(int i = N / nprocs ; i < localRowSize; i++) {
+      localRowRanges[i] = localRowRanges[i - 1] + 1;
+    }
+  }
+
+  printf("\nRank %d has ", my_rank);
+  for(int i = 0; i < localRowSize; i++) {
+    printf("%d ", localRowRanges[i]);
+  }
+  printf("local ranges.\n");
 
   // allocate memory for distance matrix
-  distanceMatrix = (double **)malloc(sizeof(double *) * (N / nprocs));
-  for (int i = 0; i < N / nprocs; i++) {
+  distanceMatrix = (double **)malloc(sizeof(double *) * localRowSize);
+  for (int i = 0; i < localRowSize; i++) {
     distanceMatrix[i] = (double *)malloc(sizeof(double) * N);
   }
   
   // Distance matrix calculation
-  int rowSize = N / nprocs;
   int bx = b;
   int by = b;
 
   // Resize Rowsize if it is less than bx
-  if(rowSize < bx) {
-    bx = rowSize;
+  if(localRowSize < bx) {
+    bx = localRowSize;
   }
 
   // Loop with step size of bx
-  for(int x = 0; x < rowSize; x+= bx){
+  for(int x = 0; x < localRowSize; x+= bx){
     // Loop with step size of by
     for(int y = 0; y < N; y+= by) {
       // Loop through row of matrix
-      for(int i = x; i < x + bx && i < rowSize; i++) {
+      for(int i = x; i < x + bx && i < localRowSize; i++) {
         // loop through column of matrix
         for(int j = y; j < y + by && j < N; j++) {
           double distance = 0;
@@ -138,12 +169,20 @@ int main(int argc, char **argv) {
     }
   }
 
+  printf("\n\nDistance Matrix Value of rank %d: \n", my_rank);
+  for (int i = 0; i < localRowSize; i++) {
+    for (int j = 0; j < N; j++) {
+      printf("%.6f ", distanceMatrix[i][j]);
+    }
+    printf("\n");
+  }
+
   // Declare and initialize global and local sum
   double globalSum;
   double localSum = 0;
 
   // calculate the local sum in all ranks
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     for (int j = 0; j < N; j++) {
       localSum += distanceMatrix[i][j];
     }
@@ -154,7 +193,7 @@ int main(int argc, char **argv) {
 
   // Print global sum by rank 0
   if (my_rank == 0) {
-    printf("Global Sum is: %f\n", globalSum);
+    printf("\n\nGlobal Sum is: %f\n", globalSum);
   }
 
   // free dataset
@@ -163,7 +202,7 @@ int main(int argc, char **argv) {
   }
   free(dataset);
 
-  for (int i = 0; i < N / nprocs; i++) {
+  for (int i = 0; i < localRowSize; i++) {
     free(distanceMatrix[i]);
   }
   free(distanceMatrix);
@@ -172,10 +211,10 @@ int main(int argc, char **argv) {
   free(rowRanges);
   free(localRowRanges);
   
-  // Calculate and print the time elapsed in rank 0
+  // Calculate the time elapsed in rank 0
   if (my_rank == 0) {
-    t2 = MPI_Wtime();
-    printf("Parallel Distance Matrix calculation time: %f seconds \n", t2 - t1);
+    tend = MPI_Wtime();
+    printf("\n\nParallel Distance Matrix calculation time: %f seconds\n", tend - tstart);
   }
 
   MPI_Finalize();

@@ -73,11 +73,11 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2;
+  double tstart, tend;
 
   // Start calculating the time
   if (my_rank == 0) {
-    t1 = MPI_Wtime();
+    tstart= MPI_Wtime();
   }
 
   int *rowRanges;
@@ -174,8 +174,8 @@ int main(int argc, char **argv) {
   
     // Calculate and print the time elapsed in rank 0
   if (my_rank == 0) {
-    t2 = MPI_Wtime();
-    printf("Parallel Distance Matrix calculation time: %f seconds\n", t2 - t1);
+    tend = MPI_Wtime();
+    printf("Parallel Distance Matrix calculation time: %f seconds\n", tend - tstart);
   }
 
   MPI_Finalize();
