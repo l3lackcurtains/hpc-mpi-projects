@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 //Do not change the seed
 #define SEED 72
-#define MAXVAL 1000000
+#define MAXVAL 5000
 
 //Total input size is N
 //Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000000000
+#define N 10000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -216,6 +216,7 @@ int main(int argc, char **argv) {
   MPI_Finalize();
   return 0;
 }
+
 
 double randomExponential(double lambda){
     double u = rand() / (RAND_MAX + 1.0);

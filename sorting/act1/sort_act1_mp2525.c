@@ -77,19 +77,26 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   t1 = MPI_Wtime();
 
-  struct range {
-    int min;
-    int max;
-  } * dataRange;
+  // Data Range memory allocation
+  int ** dataRange = (int **)malloc(sizeof(int*) * nprocs);
+  for(int i = 0; i < nprocs; i++) {
+    dataRange[i] = (int *)malloc(sizeof(int) * 2);
+  }
 
-  // Setup data ranges
-  dataRange = (struct range *)malloc(sizeof(struct range) * nprocs);
-  int rangeDistance = MAXVAL / nprocs;
-  int rangeMover = 0;
-  for (int i = 0; i < nprocs; i++) {
-    dataRange[i].min = rangeMover;
-    dataRange[i].max = i == nprocs - 1 ? MAXVAL : rangeMover + rangeDistance;
-    rangeMover += rangeDistance;
+  // Calculate data ranges in rank 0
+  if(my_rank == 0) {
+    int rangeDistance = MAXVAL / nprocs;
+    int rangeMover = 0;
+    for (int i = 0; i < nprocs; i++) {
+      dataRange[i][0] = rangeMover;
+      dataRange[i][1] = i == nprocs - 1 ? MAXVAL : rangeMover + rangeDistance;
+      rangeMover += rangeDistance;
+    }
+  }
+
+  // Broadcast datarange from rank 0 to other ranks
+  for(int i = 0; i < nprocs; i++) {
+    MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
   }
 
   // Send buffer data to other ranks
@@ -98,7 +105,7 @@ int main(int argc, char **argv) {
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
-      if (data[j] >= dataRange[i].min && data[j] < dataRange[i].max) {
+      if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
         if (i == my_rank) {
           myDataSet[datasetCount] = data[j];
           datasetCount++;
@@ -199,6 +206,9 @@ int main(int argc, char **argv) {
   free(sendDataSetBuffer);
   free(recvDatasetBuffer);
   free(myDataSet);
+  for(int i = 0; i < nprocs; i++) {
+    free(dataRange[i]);
+  }
   free(dataRange);
   free(sendBufferCount);
   free(receiveBufferCount);

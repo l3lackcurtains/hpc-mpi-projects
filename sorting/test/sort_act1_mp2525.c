@@ -5,91 +5,108 @@
 #include <math.h>
 #include <string.h>
 
-void generateData(int * data, int SIZE);
+void generateData(int *data, int SIZE);
 
-int compfn (const void * a, const void * b)
-{
-  return ( *(int*)a - *(int*)b );
-}
-
+int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 //Do not change the seed
 #define SEED 72
-#define MAXVAL 30
+#define MAXVAL 50
 
 //Total input size is N
 //Doesn't matter if N doesn't evenly divide nprocs
-#define N 20
+#define N 100
 
 int main(int argc, char **argv) {
-
   int my_rank, nprocs;
 
-  MPI_Init(&argc,&argv);
-  MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  //seed rng do not modify
-  srand(SEED+my_rank);
+  // seed rng do not modify
+  srand(SEED + my_rank);
 
-  //local input size N/nprocs
-  const unsigned int localN=N/nprocs;
+  // local input size N/nprocs
+  const unsigned int localN = N / nprocs;
 
-  //All ranks generate data
-  int * data=(int*)malloc(sizeof(int)*localN);
+  // All ranks generate data
+  int *data = (int *)malloc(sizeof(int) * localN);
 
   generateData(data, localN);
 
-  int * sendDataSetBuffer=(int*)malloc(sizeof(int)*localN); //most that can be sent is localN elements
-  int * recvDatasetBuffer=(int*)malloc(sizeof(int)*localN); //most that can be received is localN elements
-  int * myDataSet=(int*)malloc(sizeof(int)*N); //upper bound size is N elements for the rank
+  int *sendDataSetBuffer = (int *)malloc(
+      sizeof(int) * localN);  // most that can be sent is localN elements
+  int *recvDatasetBuffer = (int *)malloc(
+      sizeof(int) * localN);  // most that can be received is localN elements
+  int *myDataSet = (int *)malloc(
+      sizeof(int) * N);  // upper bound size is N elements for the rank
 
-  //Write code here
+  // Write code here
 
+  double t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
+
+  /******************************************
+  * Global Sum Calculation before sorting
+  * *****************************************
+  */
+
   localSum = 0;
-  // calculate the local sum in all ranks
   for (int i = 0; i < localN; i++) {
-      localSum += data[i];
+    localSum += data[i];
   }
+
   // Send localsum from all ranks to 0 and reduce the sum into global sum
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
   // Print global sum by rank 0
-  if (my_rank == 0){
+  if (my_rank == 0) {
     printf("#######################################\n");
     printf("Global Sum before sorting: %d", globalSum);
     printf("\n#######################################\n");
   }
 
-  struct range {
-    int min;
-    int max;
-  } *dataRange;
+  /******************************************
+  * Data Distribution
+  * *****************************************
+  */
 
-  dataRange = (struct range*) malloc(sizeof(struct range) * nprocs);
+  // Start data distribution time
+  MPI_Barrier(MPI_COMM_WORLD);
+  t1 = MPI_Wtime();
 
-  int rangeDistance = MAXVAL / nprocs;
-  int rangeMover = 0;
-
+  // Data Range memory allocation
+  int ** dataRange = (int **)malloc(sizeof(int*) * nprocs);
   for(int i = 0; i < nprocs; i++) {
-    dataRange[i].min = rangeMover;
-    dataRange[i].max = rangeMover + rangeDistance;
-    rangeMover += rangeDistance;
+    dataRange[i] = (int *)malloc(sizeof(int) * 2);
   }
 
-  printf("Original Data \n");
-  for(int i = 0; i < localN; i++) {
-    printf("%d ", data[i]);
+  // Calculate data ranges in rank 0
+  if(my_rank == 0) {
+    int rangeDistance = MAXVAL / nprocs;
+    int rangeMover = 0;
+    for (int i = 0; i < nprocs; i++) {
+      dataRange[i][0] = rangeMover;
+      dataRange[i][1] = i == nprocs - 1 ? MAXVAL : rangeMover + rangeDistance;
+      rangeMover += rangeDistance;
+    }
   }
-  printf("\n");
 
+  // Broadcast datarange from rank 0 to other ranks
+  for(int i = 0; i < nprocs; i++) {
+    MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
+  }
+
+  // Send buffer data to other ranks
   int datasetCount = 0;
-  int * sendBufferCount = (int*)malloc(sizeof(int)*nprocs);
-  for(int i = 0; i < nprocs; i++) {
+  int *sendBufferCount = (int *)malloc(sizeof(int) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
-    for(int j = 0; j < localN; j++) {
-      if(data[j] >= dataRange[i].min && data[j] < dataRange[i].max) {
-        if(i == my_rank) {
+    for (int j = 0; j < localN; j++) {
+      if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
+        if (i == my_rank) {
           myDataSet[datasetCount] = data[j];
           datasetCount++;
         } else {
@@ -98,46 +115,82 @@ int main(int argc, char **argv) {
         }
       }
     }
-    if( i != my_rank) {
+    if (i != my_rank) {
       MPI_Send(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD);
-      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0, MPI_COMM_WORLD);
+      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD);
     }
   }
 
-  int * receiveBufferCount = (int*)malloc(sizeof(int)*nprocs);
-  for(int i = 0; i < nprocs; i++) {
-    if(i != my_rank) {
+  // Receive buffer data to other ranks
+  int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    if (i != my_rank) {
       MPI_Status status1, status2;
-      MPI_Recv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &status1);
-      MPI_Recv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0, MPI_COMM_WORLD, &status2);
-    }
-  }
-
-  for(int i = 0; i < nprocs; i++) {
-    if(i != my_rank) {
-      for(int j = 0; j < receiveBufferCount[i]; j++) {
+      MPI_Recv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD,
+               &status1);
+      MPI_Recv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD, &status2);
+      for (int j = 0; j < receiveBufferCount[i]; j++) {
         myDataSet[datasetCount] = recvDatasetBuffer[j];
         datasetCount++;
       }
     }
   }
 
-  // Sorting
+  // End data distribution time
+  MPI_Barrier(MPI_COMM_WORLD);
+  t2 = MPI_Wtime();
+
+  /******************************************
+  * Sorting
+  * *****************************************
+  */
+
   qsort(myDataSet, datasetCount, sizeof(int), compfn);
 
-  printf("Rank %d has new data: \n", my_rank);
-  for(int i = 0; i < datasetCount; i++) {
-    printf("%d ", myDataSet[i]);
-  }
-  printf("\n");
+  // End Sorting time
+  MPI_Barrier(MPI_COMM_WORLD);
+  t3 = MPI_Wtime();
 
-  localSum = 0;
-  // calculate the local sum in all ranks
-  for (int i = 0; i < localN; i++) {
-      localSum += data[i];
+  /******************************************
+  * Global time calculation
+  * *****************************************
+  */
+
+  double localDistributionTime = t2 - t1;
+  double localSortingTime = t3 - t2;
+  double localTotalTime = t3 - t1;
+
+  MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
+             0, MPI_COMM_WORLD);
+
+  MPI_Reduce(&localSortingTime, &sortingTime, 1, MPI_DOUBLE, MPI_MAX, 0,
+             MPI_COMM_WORLD);
+
+  MPI_Reduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_MAX, 0,
+             MPI_COMM_WORLD);
+
+  if (my_rank == 0) {
+    printf("#######################################\n");
+    printf("Time to distribute data: %f\n", distributionTime);
+    printf("Time to Sort the data: %f\n", sortingTime);
+    printf("TOTAL time taken: %f", totalTime);
+    printf("\n#######################################\n");
   }
+
+  /******************************************
+  * Global Sum Calculation after sorting
+  * *****************************************
+  */
+  localSum = 0;
+  for (int i = 0; i < datasetCount; i++) {
+    localSum += myDataSet[i];
+  }
+
   // Send localsum from all ranks to 0 and reduce the sum into global sum
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
   // Print global sum by rank 0
   if (my_rank == 0) {
     printf("#######################################\n");
@@ -145,16 +198,28 @@ int main(int argc, char **argv) {
     printf("\n#######################################\n");
   }
 
+  /******************************************
+  * Free memory allocation
+  * *****************************************
+  */
+  free(data);
+  free(sendDataSetBuffer);
+  free(recvDatasetBuffer);
+  free(myDataSet);
+  for(int i = 0; i < nprocs; i++) {
+    free(dataRange[i]);
+  }
+  free(dataRange);
+  free(sendBufferCount);
+  free(receiveBufferCount);
+
   MPI_Finalize();
   return 0;
 }
 
-//generates data [0,MAXVAL)
-void generateData(int * data, int SIZE)
-{
-  for (int i=0; i<SIZE; i++)
-  {
-  
-  data[i]=rand()%MAXVAL;
+// generates data [0,MAXVAL)
+void generateData(int *data, int SIZE) {
+  for (int i = 0; i < SIZE; i++) {
+    data[i] = rand() % MAXVAL;
   }
 }
