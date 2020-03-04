@@ -9,12 +9,12 @@ void generateData(int *data, int SIZE);
 
 int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
-//Do not change the seed
+// Do not change the seed
 #define SEED 72
 #define MAXVAL 1000000
 
-//Total input size is N
-//Doesn't matter if N doesn't evenly divide nprocs
+// Total input size is N
+// Doesn't matter if N doesn't evenly divide nprocs
 #define N 1000000000
 
 int main(int argc, char **argv) {
@@ -78,13 +78,13 @@ int main(int argc, char **argv) {
   t1 = MPI_Wtime();
 
   // Data Range memory allocation
-  int ** dataRange = (int **)malloc(sizeof(int*) * nprocs);
-  for(int i = 0; i < nprocs; i++) {
+  int **dataRange = (int **)malloc(sizeof(int *) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
     dataRange[i] = (int *)malloc(sizeof(int) * 2);
   }
 
   // Calculate data ranges in rank 0
-  if(my_rank == 0) {
+  if (my_rank == 0) {
     int rangeDistance = MAXVAL / nprocs;
     int rangeMover = 0;
     for (int i = 0; i < nprocs; i++) {
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   }
 
   // Broadcast datarange from rank 0 to other ranks
-  for(int i = 0; i < nprocs; i++) {
+  for (int i = 0; i < nprocs; i++) {
     MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
   }
 
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
   free(sendDataSetBuffer);
   free(recvDatasetBuffer);
   free(myDataSet);
-  for(int i = 0; i < nprocs; i++) {
+  for (int i = 0; i < nprocs; i++) {
     free(dataRange[i]);
   }
   free(dataRange);
@@ -217,25 +217,22 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-double randomExponential(double lambda){
-    double u = rand() / (RAND_MAX + 1.0);
-    return -log(1- u) / lambda;
+double randomExponential(double lambda) {
+  double u = rand() / (RAND_MAX + 1.0);
+  return -log(1 - u) / lambda;
 }
 
-//generates data [0,MAXVAL)
-void generateData(int * data, int SIZE)
-{
-  for (int i=0; i<SIZE; i++)
-  {
-    double tmp=0; 
-    
-    //generate value between 0-1 using exponential distribution
-    do{
-    tmp=randomExponential(4.0);
-    // printf("\nrnd: %f",tmp);
-    }while(tmp>=1.0);
-    
-    data[i]=tmp*MAXVAL;
-   
+// generates data [0,MAXVAL)
+void generateData(int *data, int SIZE) {
+  for (int i = 0; i < SIZE; i++) {
+    double tmp = 0;
+
+    // generate value between 0-1 using exponential distribution
+    do {
+      tmp = randomExponential(4.0);
+      // printf("\nrnd: %f",tmp);
+    } while (tmp >= 1.0);
+
+    data[i] = tmp * MAXVAL;
   }
-  }
+}
