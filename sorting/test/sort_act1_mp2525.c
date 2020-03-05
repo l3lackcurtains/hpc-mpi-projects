@@ -9,12 +9,12 @@ void generateData(int *data, int SIZE);
 
 int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
-//Do not change the seed
+// Do not change the seed
 #define SEED 72
-#define MAXVAL 50
+#define MAXVAL 100
 
-//Total input size is N
-//Doesn't matter if N doesn't evenly divide nprocs
+// Total input size is N
+// Doesn't matter if N doesn't evenly divide nprocs
 #define N 100
 
 int main(int argc, char **argv) {
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2, t3, distributionTime, sortingTime, totalTime;
+  double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
 
   /******************************************
@@ -69,22 +69,22 @@ int main(int argc, char **argv) {
   }
 
   /******************************************
-  * Data Distribution
+  * Range calculation and broadcasting
   * *****************************************
   */
 
   // Start data distribution time
   MPI_Barrier(MPI_COMM_WORLD);
-  t1 = MPI_Wtime();
+  t0 = MPI_Wtime();
 
   // Data Range memory allocation
-  int ** dataRange = (int **)malloc(sizeof(int*) * nprocs);
-  for(int i = 0; i < nprocs; i++) {
+  int **dataRange = (int **)malloc(sizeof(int *) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
     dataRange[i] = (int *)malloc(sizeof(int) * 2);
   }
 
   // Calculate data ranges in rank 0
-  if(my_rank == 0) {
+  if (my_rank == 0) {
     int rangeDistance = MAXVAL / nprocs;
     int rangeMover = 0;
     for (int i = 0; i < nprocs; i++) {
@@ -95,9 +95,24 @@ int main(int argc, char **argv) {
   }
 
   // Broadcast datarange from rank 0 to other ranks
-  for(int i = 0; i < nprocs; i++) {
+  for (int i = 0; i < nprocs; i++) {
     MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
   }
+
+  if(my_rank == 0) {
+    for(int i = 0; i < nprocs; i++) {
+      printf("Rank %d has data range [%d, %d)\n", i, dataRange[i][0], dataRange[i][1]);
+    }
+    printf("======================================\n");
+  }
+
+  /******************************************
+  * Data Distribution
+  * *****************************************
+  */
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  t1 = MPI_Wtime();
 
   // Send buffer data to other ranks
   int datasetCount = 0;
@@ -122,7 +137,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Receive buffer data to other ranks
+  // Receive buffer data from other ranks
   int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
@@ -137,7 +152,13 @@ int main(int argc, char **argv) {
       }
     }
   }
-
+  
+  printf("Rank %d has dataset: ", my_rank);
+  for(int i = 0; i < datasetCount; i++) {
+    printf("%d ", myDataSet[i]);
+  }
+  printf("\n");
+  
   // End data distribution time
   MPI_Barrier(MPI_COMM_WORLD);
   t2 = MPI_Wtime();
@@ -153,6 +174,12 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   t3 = MPI_Wtime();
 
+  printf("After sorting rank %d has dataset: ", my_rank);
+  for(int i = 0; i < datasetCount; i++) {
+    printf("%d ", myDataSet[i]);
+  }
+  printf("\n");
+
   /******************************************
   * Global time calculation
   * *****************************************
@@ -160,7 +187,7 @@ int main(int argc, char **argv) {
 
   double localDistributionTime = t2 - t1;
   double localSortingTime = t3 - t2;
-  double localTotalTime = t3 - t1;
+  double localTotalTime = t3 - t0;
 
   MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
              0, MPI_COMM_WORLD);
@@ -206,7 +233,7 @@ int main(int argc, char **argv) {
   free(sendDataSetBuffer);
   free(recvDatasetBuffer);
   free(myDataSet);
-  for(int i = 0; i < nprocs; i++) {
+  for (int i = 0; i < nprocs; i++) {
     free(dataRange[i]);
   }
   free(dataRange);

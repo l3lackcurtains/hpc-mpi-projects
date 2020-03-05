@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Do not change the seed
 #define SEED 72
-#define MAXVAL 20
+#define MAXVAL 1000000
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 100
+#define N 1000000000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2, t3, distributionTime, sortingTime, totalTime;
+  double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
 
   /******************************************
@@ -69,9 +69,15 @@ int main(int argc, char **argv) {
   }
 
   /******************************************
-  * Generating Histogram
+  * Generating Histogram, Range Calculation
+  * and broadcasting
   * *****************************************
   */
+
+  // Start data distribution time
+  MPI_Barrier(MPI_COMM_WORLD);
+  t0 = MPI_Wtime();
+
   int *globalDataCounter = (int *)malloc(sizeof(int) * MAXVAL);
   int *dataCounter = (int *)malloc(sizeof(int) * MAXVAL);
 
@@ -199,7 +205,7 @@ int main(int argc, char **argv) {
 
   double localDistributionTime = t2 - t1;
   double localSortingTime = t3 - t2;
-  double localTotalTime = t3 - t1;
+  double localTotalTime = t3 - t0;
 
   MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
              0, MPI_COMM_WORLD);

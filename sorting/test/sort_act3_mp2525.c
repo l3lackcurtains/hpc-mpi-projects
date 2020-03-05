@@ -9,12 +9,12 @@ void generateData(int *data, int SIZE);
 
 int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
-//Do not change the seed
+// Do not change the seed
 #define SEED 72
-#define MAXVAL 20
+#define MAXVAL 100
 
-//Total input size is N
-//Doesn't matter if N doesn't evenly divide nprocs
+// Total input size is N
+// Doesn't matter if N doesn't evenly divide nprocs
 #define N 100
 
 int main(int argc, char **argv) {
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2, t3, distributionTime, sortingTime, totalTime;
+  double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
 
   /******************************************
@@ -69,63 +69,56 @@ int main(int argc, char **argv) {
   }
 
   /******************************************
-  * Generating Histogram
+  * Generating Histogram, Range Calculation
+  * and broadcasting
   * *****************************************
   */
-  int *globalDataCounter = (int*)malloc(sizeof(int) * MAXVAL);
-  int *dataCounter = (int*)malloc(sizeof(int) * MAXVAL);
 
-  int ** dataRange = (int **)malloc(sizeof(int*) * nprocs);
-  for(int i = 0; i < nprocs; i++) {
+  // Start data distribution time
+  MPI_Barrier(MPI_COMM_WORLD);
+  t0 = MPI_Wtime();
+
+  int *globalDataCounter = (int *)malloc(sizeof(int) * MAXVAL);
+  int *dataCounter = (int *)malloc(sizeof(int) * MAXVAL);
+
+  int **dataRange = (int **)malloc(sizeof(int *) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
     dataRange[i] = (int *)malloc(sizeof(int) * 2);
   }
 
   // Initialize datacounter as 0
-  for(int i = 0; i < MAXVAL; i++) {
+  for (int i = 0; i < MAXVAL; i++) {
     dataCounter[i] = 0;
     globalDataCounter[i] = 0;
   }
 
-  for(int i = 0; i < localN; i++) {
+  for (int i = 0; i < localN; i++) {
     dataCounter[data[i]] += 1;
   }
 
-  printf("Local Data Counter of Rank %d: \n", my_rank);
-  for(int i = 0; i < MAXVAL; i++) {
-    printf("%d: %d, ", i, dataCounter[i]);
-  }
-  printf("\n");
-
-  if(my_rank != 0) {
+  if (my_rank != 0) {
     MPI_Send(dataCounter, MAXVAL, MPI_INT, 0, 2, MPI_COMM_WORLD);
   }
-  
-  
-  if(my_rank == 0) {
-    for(int i = 0; i < nprocs; i++) {
-      if(i != my_rank) {
+
+  if (my_rank == 0) {
+    for (int i = 0; i < nprocs; i++) {
+      if (i != my_rank) {
         MPI_Status status;
         MPI_Recv(dataCounter, MAXVAL, MPI_INT, i, 2, MPI_COMM_WORLD, &status);
       }
-      for(int i = 0; i < MAXVAL; i++) {
+      for (int i = 0; i < MAXVAL; i++) {
         globalDataCounter[i] += dataCounter[i];
       }
     }
 
-    printf("Global Data Counter: \n");
-    for(int i = 0; i < MAXVAL; i++) {
-      printf("%d: %d, ", i, globalDataCounter[i]);
-    }
-    printf("\n");
-
-    int distributionPercentage = N/nprocs;
+    int distributionPercentage = N / nprocs;
     int distributionRangeMover = distributionPercentage;
     int dataCounter = 0;
     int rangeMin = 0;
     int procCounter = 0;
-    for(int j = 0; j < MAXVAL && procCounter < nprocs; j++) {
+    for (int j = 0; j < MAXVAL && procCounter < nprocs; j++) {
       dataCounter += globalDataCounter[j];
-      if(dataCounter >= distributionRangeMover && procCounter != nprocs - 1) {
+      if (dataCounter >= distributionRangeMover && procCounter != nprocs - 1) {
         dataRange[procCounter][0] = rangeMin;
         dataRange[procCounter][1] = j + 1;
         rangeMin = j + 1;
@@ -136,14 +129,17 @@ int main(int argc, char **argv) {
         dataRange[procCounter][1] = MAXVAL;
       }
     }
-
-    for(int i = 0; i < nprocs; i++) {
-      printf("Rank %d has range [%d, %d)\n", i, dataRange[i][0], dataRange[i][1] );
-    }
   }
 
-  for(int i = 0; i < nprocs; i++) {
+  for (int i = 0; i < nprocs; i++) {
     MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
+  }
+
+  if(my_rank == 0) {
+    for(int i = 0; i < nprocs; i++) {
+      printf("Rank %d has data range [%d, %d)\n", i, dataRange[i][0], dataRange[i][1]);
+    }
+    printf("======================================\n");
   }
 
   /******************************************
@@ -194,6 +190,12 @@ int main(int argc, char **argv) {
     }
   }
 
+  printf("Rank %d has dataset: ", my_rank);
+  for(int i = 0; i < datasetCount; i++) {
+    printf("%d ", myDataSet[i]);
+  }
+  printf("\n");
+
   // End data distribution time
   MPI_Barrier(MPI_COMM_WORLD);
   t2 = MPI_Wtime();
@@ -209,6 +211,12 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   t3 = MPI_Wtime();
 
+  printf("After sorting rank %d has dataset: ", my_rank);
+  for(int i = 0; i < datasetCount; i++) {
+    printf("%d ", myDataSet[i]);
+  }
+  printf("\n");
+
   /******************************************
   * Global time calculation
   * *****************************************
@@ -216,7 +224,7 @@ int main(int argc, char **argv) {
 
   double localDistributionTime = t2 - t1;
   double localSortingTime = t3 - t2;
-  double localTotalTime = t3 - t1;
+  double localTotalTime = t3 - t0;
 
   MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
              0, MPI_COMM_WORLD);
@@ -262,7 +270,7 @@ int main(int argc, char **argv) {
   free(sendDataSetBuffer);
   free(recvDatasetBuffer);
   free(myDataSet);
-  for(int i = 0; i < nprocs; i++) {
+  for (int i = 0; i < nprocs; i++) {
     free(dataRange[i]);
   }
   free(dataRange);
@@ -273,26 +281,22 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-
-double randomExponential(double lambda){
-    double u = rand() / (RAND_MAX + 1.0);
-    return -log(1- u) / lambda;
+double randomExponential(double lambda) {
+  double u = rand() / (RAND_MAX + 1.0);
+  return -log(1 - u) / lambda;
 }
 
-//generates data [0,MAXVAL)
-void generateData(int * data, int SIZE)
-{
-  for (int i=0; i<SIZE; i++)
-  {
-    double tmp=0; 
-    
-    //generate value between 0-1 using exponential distribution
-    do{
-    tmp=randomExponential(4.0);
-    // printf("\nrnd: %f",tmp);
-    }while(tmp>=1.0);
-    
-    data[i]=tmp*MAXVAL;
-   
+// generates data [0,MAXVAL)
+void generateData(int *data, int SIZE) {
+  for (int i = 0; i < SIZE; i++) {
+    double tmp = 0;
+
+    // generate value between 0-1 using exponential distribution
+    do {
+      tmp = randomExponential(4.0);
+      // printf("\nrnd: %f",tmp);
+    } while (tmp >= 1.0);
+
+    data[i] = tmp * MAXVAL;
   }
-  }
+}

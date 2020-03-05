@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
   // Write code here
 
-  double t1, t2, t3, distributionTime, sortingTime, totalTime;
+  double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
 
   /******************************************
@@ -69,13 +69,13 @@ int main(int argc, char **argv) {
   }
 
   /******************************************
-  * Data Distribution
+  * Range calculation and broadcasting
   * *****************************************
   */
 
   // Start data distribution time
   MPI_Barrier(MPI_COMM_WORLD);
-  t1 = MPI_Wtime();
+  t0 = MPI_Wtime();
 
   // Data Range memory allocation
   int **dataRange = (int **)malloc(sizeof(int *) * nprocs);
@@ -98,6 +98,14 @@ int main(int argc, char **argv) {
   for (int i = 0; i < nprocs; i++) {
     MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
   }
+
+  /******************************************
+  * Data Distribution
+  * *****************************************
+  */
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  t1 = MPI_Wtime();
 
   // Send buffer data to other ranks
   int datasetCount = 0;
@@ -122,7 +130,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  // Receive buffer data to other ranks
+  // Receive buffer data from other ranks
   int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
@@ -160,7 +168,7 @@ int main(int argc, char **argv) {
 
   double localDistributionTime = t2 - t1;
   double localSortingTime = t3 - t2;
-  double localTotalTime = t3 - t1;
+  double localTotalTime = t3 - t0;
 
   MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
              0, MPI_COMM_WORLD);
