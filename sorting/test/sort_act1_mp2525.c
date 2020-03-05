@@ -44,6 +44,13 @@ int main(int argc, char **argv) {
 
   // Write code here
 
+  printf("Rank %d has random data: ", my_rank);
+  for(int i = 0; i < localN; i++) {
+    printf("%d ", data[i]);
+  }
+  printf("\n======================================\n");
+  
+
   double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
 

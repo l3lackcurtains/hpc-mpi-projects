@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#BATCH --job-name=sort_act2_mp2525
-#SBATCH --output=/scratch/mp2525/sort_act2_mp2525.txt	
-#SBATCH --error=/scratch/mp2525/sort_act2_mp2525.err
+#BATCH --job-name=sort_act2_mp2525_12
+#SBATCH --output=/scratch/mp2525/sort_act2_mp2525_12.txt	
+#SBATCH --error=/scratch/mp2525/sort_act2_mp2525_12.err
 #SBATCH --time=120:00
 #SBATCH --mem=40000
 #SBATCH --nodes=1
