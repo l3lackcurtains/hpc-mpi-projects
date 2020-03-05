@@ -3,7 +3,7 @@
 #BATCH --job-name=sort_act1_mp2525
 #SBATCH --output=/scratch/mp2525/sort_act1_mp2525.txt	
 #SBATCH --error=/scratch/mp2525/sort_act1_mp2525.err
-#SBATCH --time=20:00
+#SBATCH --time=120:00
 #SBATCH --mem=40000
 #SBATCH --nodes=1
 #SBATCH --ntasks=12
