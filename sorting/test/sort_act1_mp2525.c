@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
   
 
   double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
-  int globalSum, localSum;
+  long int globalSum, localSum;
 
   /******************************************
   * Global Sum Calculation before sorting
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
 
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
   // Print global sum by rank 0
   if (my_rank == 0) {
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
   }
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
   // Print global sum by rank 0
   if (my_rank == 0) {
