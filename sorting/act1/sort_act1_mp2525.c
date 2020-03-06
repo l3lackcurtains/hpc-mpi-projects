@@ -35,12 +35,9 @@ int main(int argc, char **argv) {
 
   generateData(data, localN);
 
-  int *sendDataSetBuffer = (int *)malloc(
-      sizeof(int) * localN);  // most that can be sent is localN elements
-  int *recvDatasetBuffer = (int *)malloc(
-      sizeof(int) * localN);  // most that can be received is localN elements
-  int *myDataSet = (int *)malloc(
-      sizeof(int) * N);  // upper bound size is N elements for the rank
+  int *sendDataSetBuffer = (int *)malloc(sizeof(int) * localN);  // most that can be sent is localN elements
+  int *recvDatasetBuffer = (int *)malloc(sizeof(int) * localN);  // most that can be received is localN elements
+  int *myDataSet = (int *)malloc(sizeof(int) * N);  // upper bound size is N elements for the rank
 
   // Write code here
 

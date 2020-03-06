@@ -15,7 +15,7 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 100
+#define N 1000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   for(int i = 0; i < localN; i++) {
     printf("%d ", data[i]);
   }
-  printf("\n======================================\n");
+  printf("\n");
 
   double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
   int globalSum, localSum;
