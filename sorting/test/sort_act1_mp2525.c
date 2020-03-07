@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Do not change the seed
 #define SEED 72
-#define MAXVAL 100
+#define MAXVAL 50
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000
+#define N 100
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -126,6 +126,7 @@ int main(int argc, char **argv) {
   int *sendBufferCount = (int *)malloc(sizeof(int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
+    sendDataSetBuffer = (int *)malloc(sizeof(int) * localN);
     for (int j = 0; j < localN; j++) {
       if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
         if (i == my_rank) {
@@ -137,16 +138,19 @@ int main(int argc, char **argv) {
         }
       }
     }
+    
     if (i != my_rank) {
       MPI_Send(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD);
       MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
                MPI_COMM_WORLD);
+      free(sendDataSetBuffer);
     }
   }
 
   // Receive buffer data from other ranks
   int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
+    recvDatasetBuffer = (int *)malloc(sizeof(int) * localN);
     if (i != my_rank) {
       MPI_Status status1, status2;
       MPI_Recv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD,
@@ -157,6 +161,7 @@ int main(int argc, char **argv) {
         myDataSet[datasetCount] = recvDatasetBuffer[j];
         datasetCount++;
       }
+      free(recvDatasetBuffer);
     }
   }
   
@@ -237,8 +242,6 @@ int main(int argc, char **argv) {
   * *****************************************
   */
   free(data);
-  free(sendDataSetBuffer);
-  free(recvDatasetBuffer);
   free(myDataSet);
   for (int i = 0; i < nprocs; i++) {
     free(dataRange[i]);

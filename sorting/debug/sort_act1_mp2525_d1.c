@@ -35,12 +35,9 @@ int main(int argc, char **argv) {
 
   generateData(data, localN);
 
-  int *sendDataSetBuffer = (int *)malloc(
-      sizeof(int) * localN);  // most that can be sent is localN elements
-  int *recvDatasetBuffer = (int *)malloc(
-      sizeof(int) * localN);  // most that can be received is localN elements
-  int *myDataSet = (int *)malloc(
-      sizeof(int) * N);  // upper bound size is N elements for the rank
+  int *sendDataSetBuffer = (int *)malloc(sizeof(int) * localN);  // most that can be sent is localN elements
+  int *recvDatasetBuffer = (int *)malloc(sizeof(int) * localN);  // most that can be received is localN elements
+  int *myDataSet = (int *)malloc(sizeof(int) * N);  // upper bound size is N elements for the rank
 
   // Write code here
 
@@ -111,6 +108,7 @@ int main(int argc, char **argv) {
   int datasetCount = 0;
   int *sendBufferCount = (int *)malloc(sizeof(int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
+    sendDataSetBuffer = (int *)malloc(sizeof(int) * localN); 
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
       if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
@@ -128,11 +126,13 @@ int main(int argc, char **argv) {
       MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
                MPI_COMM_WORLD);
     }
+    free(sendDataSetBuffer);
   }
 
-  // Receive buffer data to other ranks
+  // Receive buffer data from other ranks
   int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
+     recvDatasetBuffer = (int *)malloc(sizeof(int) * localN); 
     if (i != my_rank) {
       MPI_Status status1, status2;
       MPI_Recv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD,
@@ -144,6 +144,7 @@ int main(int argc, char **argv) {
         datasetCount++;
       }
     }
+    free(recvDatasetBuffer);
   }
 
   // End data distribution time
@@ -211,8 +212,6 @@ int main(int argc, char **argv) {
   * *****************************************
   */
   free(data);
-  free(sendDataSetBuffer);
-  free(recvDatasetBuffer);
   free(myDataSet);
   for (int i = 0; i < nprocs; i++) {
     free(dataRange[i]);
