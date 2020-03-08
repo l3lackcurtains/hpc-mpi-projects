@@ -15,7 +15,7 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000
+#define N 1000000000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -123,14 +123,11 @@ int main(int argc, char **argv) {
     }
     if (i != my_rank) {
 
-      MPI_Request request[2];
-      MPI_Status status[2];
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[0]);
+      MPI_Send(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD);
 
-      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request[1]);
-      MPI_Waitall(2, request, status);
+      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD);
     }
   }
 
