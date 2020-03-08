@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Do not change the seed
 #define SEED 72
-#define MAXVAL 1000000
+#define MAXVAL 100
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000000000
+#define N 100
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -110,10 +110,12 @@ int main(int argc, char **argv) {
   unsigned int datasetCount = 0;
   unsigned int *sendBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
 
-  MPI_Request *request = (MPI_Request *)malloc(sizeof(MPI_Request) * nprocs * 2);
-  MPI_Status *status = (MPI_Status *)malloc(sizeof(MPI_Status) * nprocs * 2);
-  int reqcount = 0;
-  int stscount = 0;
+  MPI_Request **request0 = (MPI_Request **)malloc(sizeof(MPI_Request*) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    request0[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
+  }
+
+  // Sending Data
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
@@ -129,42 +131,41 @@ int main(int argc, char **argv) {
     }
     if (i != my_rank) {
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[reqcount]);
-      MPI_Wait(&request[reqcount], &status[stscount]);
-      reqcount++;
-      stscount++;
-
+      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request0[i][0]);
 
       MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request[reqcount]);
-      MPI_Wait(&request[reqcount], &status[stscount]);
-      reqcount++;
-      stscount++;
+               MPI_COMM_WORLD, &request0[i][1]);
     }
   }
 
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
 
-  MPI_Request *request2 = (MPI_Request *)malloc(sizeof(MPI_Request) * nprocs * 2);
-  MPI_Status *status2 = (MPI_Status *)malloc(sizeof(MPI_Status) * nprocs * 2);
-  reqcount = 0;
-  stscount = 0;
+  MPI_Request **request = (MPI_Request **)malloc(sizeof(MPI_Request*) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    request[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
+  }
 
+  MPI_Status **status = (MPI_Status **)malloc(sizeof(MPI_Status*) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    status[i] = (MPI_Status *)malloc(sizeof(MPI_Status) * 2);
+  }
+
+  // Receiving data
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
 
-      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request2[reqcount]);
+      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[i][0]);
+      MPI_Wait(&request[i][0], &status[i][0]);
 
-      MPI_Wait(&request2[reqcount], &status2[stscount]);
-      reqcount++;
-      stscount++;
+    }
+  }
 
+  for (int i = 0; i < nprocs; i++) {
+    if (i != my_rank) {
       MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request2[reqcount]);
-      MPI_Wait(&request2[reqcount], &status2[stscount]);
-      reqcount++;
-      stscount++;
+               MPI_COMM_WORLD, &request[i][1]);
+      MPI_Wait(&request[i][1], &status[i][1]);
 
       for (int j = 0; j < receiveBufferCount[i]; j++) {
         myDataSet[datasetCount] = recvDatasetBuffer[j];
@@ -172,8 +173,6 @@ int main(int argc, char **argv) {
       }
     }
   }
-
-  
 
   // End data distribution time
   MPI_Barrier(MPI_COMM_WORLD);
