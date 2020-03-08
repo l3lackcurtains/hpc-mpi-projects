@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Do not change the seed
 #define SEED 72
-#define MAXVAL 100
+#define MAXVAL 1000000
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000
+#define N 1000000000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
