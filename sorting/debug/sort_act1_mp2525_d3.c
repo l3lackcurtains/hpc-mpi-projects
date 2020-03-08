@@ -15,7 +15,7 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000000000
+#define N 1000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -77,15 +77,15 @@ int main(int argc, char **argv) {
   t0 = MPI_Wtime();
 
   // Data Range memory allocation
-  int **dataRange = (int **)malloc(sizeof(int *) * nprocs);
+  unsigned int **dataRange = (unsigned int **)malloc(sizeof(unsigned int *) * nprocs);
   for (int i = 0; i < nprocs; i++) {
-    dataRange[i] = (int *)malloc(sizeof(int) * 2);
+    dataRange[i] = (unsigned int *)malloc(sizeof(unsigned int) * 2);
   }
 
   // Calculate data ranges in rank 0
   if (my_rank == 0) {
-    int rangeDistance = MAXVAL / nprocs;
-    int rangeMover = 0;
+    unsigned int rangeDistance = MAXVAL / nprocs;
+    unsigned int rangeMover = 0;
     for (int i = 0; i < nprocs; i++) {
       dataRange[i][0] = rangeMover;
       dataRange[i][1] = i == nprocs - 1 ? MAXVAL : rangeMover + rangeDistance;
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 
   // Broadcast datarange from rank 0 to other ranks
   for (int i = 0; i < nprocs; i++) {
-    MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(dataRange[i], 2, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
   }
 
   /******************************************
@@ -106,8 +106,8 @@ int main(int argc, char **argv) {
   t1 = MPI_Wtime();
 
   // Send buffer data to other ranks
-  int datasetCount = 0;
-  int *sendBufferCount = (int *)malloc(sizeof(int) * nprocs);
+  unsigned int datasetCount = 0;
+  unsigned int *sendBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
@@ -122,23 +122,26 @@ int main(int argc, char **argv) {
       }
     }
     if (i != my_rank) {
-      MPI_Request request1, request2;
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Request request[2];
+      MPI_Status status[2];
+
+      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[0]);
 
       MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request2);
+               MPI_COMM_WORLD, &request[1]);
+      MPI_Waitall(2, request, status);
     }
   }
 
   // Receive buffer data to other ranks
-  int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
+  unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
       MPI_Request request1, request2;
       MPI_Status status1, status2;
 
-      MPI_Irecv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
       MPI_Wait(&request1, &status1);
 
       MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
@@ -151,6 +154,8 @@ int main(int argc, char **argv) {
       }
     }
   }
+
+  
 
   // End data distribution time
   t2 = MPI_Wtime();
