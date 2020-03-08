@@ -74,7 +74,6 @@ int main(int argc, char **argv) {
   */
 
   // Start data distribution time
-  MPI_Barrier(MPI_COMM_WORLD);
   t0 = MPI_Wtime();
 
   // Data Range memory allocation
@@ -104,7 +103,6 @@ int main(int argc, char **argv) {
   * *****************************************
   */
 
-  MPI_Barrier(MPI_COMM_WORLD);
   t1 = MPI_Wtime();
 
   // Send buffer data to other ranks
@@ -124,11 +122,12 @@ int main(int argc, char **argv) {
       }
     }
     if (i != my_rank) {
-      MPI_Status status1, status2;
-      MPI_Send(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD);
+      MPI_Request request1, request2;
 
-      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD);
+      MPI_Isend(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+
+      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD, &request2);
     }
   }
 
@@ -154,7 +153,6 @@ int main(int argc, char **argv) {
   }
 
   // End data distribution time
-  MPI_Barrier(MPI_COMM_WORLD);
   t2 = MPI_Wtime();
 
   /******************************************
@@ -165,7 +163,6 @@ int main(int argc, char **argv) {
   qsort(myDataSet, datasetCount, sizeof(int), compfn);
 
   // End Sorting time
-  MPI_Barrier(MPI_COMM_WORLD);
   t3 = MPI_Wtime();
 
   /******************************************

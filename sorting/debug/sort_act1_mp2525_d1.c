@@ -122,9 +122,12 @@ int main(int argc, char **argv) {
       }
     }
     if (i != my_rank) {
-      MPI_Send(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD);
-      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD);
+      MPI_Request request1, request2;
+
+      MPI_Isend(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+
+      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD, &request2);
     }
     free(sendDataSetBuffer);
   }
@@ -134,11 +137,16 @@ int main(int argc, char **argv) {
   for (int i = 0; i < nprocs; i++) {
      recvDatasetBuffer = (int *)malloc(sizeof(int) * localN); 
     if (i != my_rank) {
+      MPI_Request request1, request2;
       MPI_Status status1, status2;
-      MPI_Recv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD,
-               &status1);
-      MPI_Recv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &status2);
+
+      MPI_Irecv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Wait(&request1, &status1);
+
+      MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD, &request2);
+      MPI_Wait(&request2, &status2);
+
       for (int j = 0; j < receiveBufferCount[i]; j++) {
         myDataSet[datasetCount] = recvDatasetBuffer[j];
         datasetCount++;
