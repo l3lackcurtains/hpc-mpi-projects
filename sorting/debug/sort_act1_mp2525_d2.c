@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
   // Write code here
 
   double t0, t1, t2, t3, distributionTime, sortingTime, totalTime;
-  long unsigned int globalSum, localSum;
+  long long unsigned int globalSum, localSum;
 
   /******************************************
   * Global Sum Calculation before sorting
@@ -59,12 +59,12 @@ int main(int argc, char **argv) {
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
 
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
   // Print global sum by rank 0
   if (my_rank == 0) {
     printf("#######################################\n");
-    printf("Global Sum before sorting: %lu", globalSum);
+    printf("Global Sum before sorting: %llu", globalSum);
     printf("\n#######################################\n");
   }
 
@@ -130,10 +130,11 @@ int main(int argc, char **argv) {
 
       MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
                MPI_COMM_WORLD, &request2);
-      MPI_Wait(&request2, &status2);
     }
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
+  
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
   for (int i = 0; i < nprocs; i++) {
@@ -206,12 +207,12 @@ int main(int argc, char **argv) {
   }
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
   // Print global sum by rank 0
   if (my_rank == 0) {
     printf("#######################################\n");
-    printf("Global Sum after sorting: %lu", globalSum);
+    printf("Global Sum after sorting: %llu", globalSum);
     printf("\n#######################################\n");
   }
 
