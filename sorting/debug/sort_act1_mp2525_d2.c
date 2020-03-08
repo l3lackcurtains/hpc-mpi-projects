@@ -130,10 +130,12 @@ int main(int argc, char **argv) {
 
       MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
                MPI_COMM_WORLD, &request2);
+      
+      MPI_Wait(&request1, &status1);
+      MPI_Wait(&request2, &status2);
     }
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
   
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);

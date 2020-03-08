@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
   // Send buffer data to other ranks
   unsigned int datasetCount = 0;
   unsigned int *sendBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
+  
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
@@ -128,13 +129,11 @@ int main(int argc, char **argv) {
 
       MPI_Send(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD);
 
-      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request2);
-      MPI_Wait(&request2, &status2);
+      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD);
+      
     }
   }
-
-  MPI_Barrier(MPI_COMM_WORLD);
 
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
