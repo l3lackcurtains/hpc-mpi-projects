@@ -130,10 +130,10 @@ int main(int argc, char **argv) {
     }
     if (i != my_rank) {
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request0[i][0]);
+      MPI_Send(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD);
 
-      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request0[i][1]);
+      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD);
     }
   }
 

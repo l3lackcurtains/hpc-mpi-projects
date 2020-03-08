@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Do not change the seed
 #define SEED 72
-#define MAXVAL 1000000
+#define MAXVAL 100
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000000000
+#define N 1000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -35,12 +35,19 @@ int main(int argc, char **argv) {
 
   generateData(data, localN);
 
-  int *sendDataSetBuffer = (int *)malloc(
-      sizeof(int) * localN);  // most that can be sent is localN elements
-  int *recvDatasetBuffer = (int *)malloc(
-      sizeof(int) * localN);  // most that can be received is localN elements
-  int *myDataSet = (int *)malloc(
-      sizeof(int) * N);  // upper bound size is N elements for the rank
+
+  int **sendDataSetBuffer = (int **)malloc(sizeof(int*) * nprocs);
+  for(int i = 0; i < nprocs; i++) {
+    sendDataSetBuffer[i] = (int *)malloc(sizeof(int) * localN);
+  }
+
+  int **recvDatasetBuffer = (int **)malloc(sizeof(int*) * nprocs);
+  for(int i = 0; i < nprocs; i++) {
+    recvDatasetBuffer[i] = (int *)malloc(sizeof(int) * localN);
+  }
+
+
+  int *myDataSet = (int *)malloc(sizeof(int) * N);
 
   // Write code here
 
@@ -110,11 +117,6 @@ int main(int argc, char **argv) {
   unsigned int datasetCount = 0;
   unsigned int *sendBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
 
-  MPI_Request **request0 = (MPI_Request **)malloc(sizeof(MPI_Request*) * nprocs);
-  for (int i = 0; i < nprocs; i++) {
-    request0[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
-  }
-
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
@@ -123,51 +125,55 @@ int main(int argc, char **argv) {
           myDataSet[datasetCount] = data[j];
           datasetCount++;
         } else {
-          sendDataSetBuffer[sendBufferCount[i]] = data[j];
+          sendDataSetBuffer[i][sendBufferCount[i]] = data[j];
           sendBufferCount[i]++;
         }
       }
     }
-    if (i != my_rank) {
+  }
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request0[i][0]);
+  for(int i = 0; i < nprocs; i++) {
+    if(i != my_rank) {
+      if (i != my_rank) {
+        MPI_Request request1, request2;
+        MPI_Status status1, status2;
 
-      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request0[i][1]);
+        MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
+        MPI_Isend(sendDataSetBuffer[i], sendBufferCount[i], MPI_INT, i, 0,
+                MPI_COMM_WORLD, &request2);
+      }
     }
   }
 
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
 
-  MPI_Request **request = (MPI_Request **)malloc(sizeof(MPI_Request*) * nprocs);
-  for (int i = 0; i < nprocs; i++) {
-    request[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
-  }
-
-  MPI_Status **status = (MPI_Status **)malloc(sizeof(MPI_Status*) * nprocs);
-  for (int i = 0; i < nprocs; i++) {
-    status[i] = (MPI_Status *)malloc(sizeof(MPI_Status) * 2);
-  }
-
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
+      MPI_Request request1, request2;
+      MPI_Status status1, status2;
 
-      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[i][0]);
-      MPI_Wait(&request[i][0], &status[i][0]);
+      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Wait(&request1, &status1);
 
     }
   }
 
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
-      MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request[i][1]);
-      MPI_Wait(&request[i][1], &status[i][1]);
+      MPI_Request request1, request2;
+      MPI_Status status1, status2;
 
+      MPI_Irecv(recvDatasetBuffer[i], receiveBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD, &request1);
+      MPI_Wait(&request1, &status1);
+    }
+  }
 
+  for(int i = 0; i < nprocs; i++) {
+    if(i != my_rank) {
       for (int j = 0; j < receiveBufferCount[i]; j++) {
-        myDataSet[datasetCount] = recvDatasetBuffer[j];
+        myDataSet[datasetCount] = recvDatasetBuffer[i][j];
         datasetCount++;
       }
     }

@@ -15,7 +15,7 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 100
+#define N 1000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -115,6 +115,11 @@ int main(int argc, char **argv) {
     request0[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
   }
 
+  MPI_Status **status0 = (MPI_Status **)malloc(sizeof(MPI_Status*) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    status0[i] = (MPI_Status *)malloc(sizeof(MPI_Status) * 2);
+  }
+
   // Sending Data
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
@@ -138,6 +143,13 @@ int main(int argc, char **argv) {
     }
   }
 
+
+  for(int i = 0; i < nprocs; i++) {
+    if(i != my_rank) {
+      MPI_Wait(&request0[i][0], &status0[i][0]);
+      MPI_Wait(&request0[i][1], &status0[i][1]);
+    }
+  }
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
 
@@ -154,15 +166,13 @@ int main(int argc, char **argv) {
   // Receiving data
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
-
       MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[i][0]);
-      MPI_Wait(&request[i][0], &status[i][0]);
-
     }
   }
 
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
+      MPI_Wait(&request[i][0], &status[i][0]);
       MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
                MPI_COMM_WORLD, &request[i][1]);
       MPI_Wait(&request[i][1], &status[i][1]);
