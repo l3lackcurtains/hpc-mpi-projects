@@ -126,12 +126,15 @@ int main(int argc, char **argv) {
       MPI_Request request1, request2;
       MPI_Status status1, status2;
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Send(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD);
 
       MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
                MPI_COMM_WORLD, &request2);
+      MPI_Wait(&request2, &status2);
     }
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);

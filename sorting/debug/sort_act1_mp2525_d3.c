@@ -11,11 +11,11 @@ int compfn(const void *a, const void *b) { return (*(int *)a - *(int *)b); }
 
 // Do not change the seed
 #define SEED 72
-#define MAXVAL 1000000
+#define MAXVAL 100
 
 // Total input size is N
 // Doesn't matter if N doesn't evenly divide nprocs
-#define N 1000000000
+#define N 1000
 
 int main(int argc, char **argv) {
   int my_rank, nprocs;
@@ -127,12 +127,14 @@ int main(int argc, char **argv) {
       MPI_Request request1, request2;
       MPI_Status status1, status2;
 
-      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Send(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD);
 
-      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request2);
+      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+               MPI_COMM_WORLD);
     }
   }
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
