@@ -39,8 +39,8 @@ int main(int argc, char **argv) {
       sizeof(int) * localN);  // most that can be sent is localN elements
   int *recvDatasetBuffer = (int *)malloc(
       sizeof(int) * localN);  // most that can be received is localN elements
-  int *myDataSet = (int *)malloc(
-      sizeof(int) * N);  // upper bound size is N elements for the rank
+
+  int *myDataSet = (int *)malloc(sizeof(int) * N);
 
   // Write code here
 
@@ -58,7 +58,6 @@ int main(int argc, char **argv) {
   }
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
-
   MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 
   // Print global sum by rank 0
@@ -78,15 +77,15 @@ int main(int argc, char **argv) {
   t0 = MPI_Wtime();
 
   // Data Range memory allocation
-  int **dataRange = (int **)malloc(sizeof(int *) * nprocs);
+  unsigned int **dataRange = (unsigned int **)malloc(sizeof(unsigned int *) * nprocs);
   for (int i = 0; i < nprocs; i++) {
-    dataRange[i] = (int *)malloc(sizeof(int) * 2);
+    dataRange[i] = (unsigned int *)malloc(sizeof(unsigned int) * 2);
   }
 
   // Calculate data ranges in rank 0
   if (my_rank == 0) {
-    int rangeDistance = MAXVAL / nprocs;
-    int rangeMover = 0;
+    unsigned int rangeDistance = MAXVAL / nprocs;
+    unsigned int rangeMover = 0;
     for (int i = 0; i < nprocs; i++) {
       dataRange[i][0] = rangeMover;
       dataRange[i][1] = i == nprocs - 1 ? MAXVAL : rangeMover + rangeDistance;
@@ -96,7 +95,7 @@ int main(int argc, char **argv) {
 
   // Broadcast datarange from rank 0 to other ranks
   for (int i = 0; i < nprocs; i++) {
-    MPI_Bcast(dataRange[i], 2, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(dataRange[i], 2, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
   }
 
   /******************************************
@@ -108,38 +107,59 @@ int main(int argc, char **argv) {
   t1 = MPI_Wtime();
 
   // Send buffer data to other ranks
-  int datasetCount = 0;
-  int *sendBufferCount = (int *)malloc(sizeof(int) * nprocs);
+  unsigned int datasetCount = 0;
+  unsigned int *sendBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
+
+  // Array of MPI request send
+  MPI_Request **request = (MPI_Request **)malloc(sizeof(MPI_Request*) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    request[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
+  }
+
+  // Array of MPI Status send
+  MPI_Status **status = (MPI_Status **)malloc(sizeof(MPI_Status*) * nprocs);
+  for (int i = 0; i < nprocs; i++) {
+    status[i] = (MPI_Status *)malloc(sizeof(MPI_Status) * 2);
+  }
+
+  // Send data to range of other ranks and store data in its own range
   for (int i = 0; i < nprocs; i++) {
     sendBufferCount[i] = 0;
     for (int j = 0; j < localN; j++) {
       if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
+
+        // put data into mydataset for own range
         if (i == my_rank) {
           myDataSet[datasetCount] = data[j];
           datasetCount++;
-        } else {
+        }
+        // put data into send data buffer for sending
+        else {
           sendDataSetBuffer[sendBufferCount[i]] = data[j];
           sendBufferCount[i]++;
         }
       }
     }
+
+    // Send the data count and data to respective rank
     if (i != my_rank) {
-      MPI_Request request1, request2;
-      MPI_Isend(&sendBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+
+      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[i][0]);
 
       MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request2);
+               MPI_COMM_WORLD, &request[i][1]);
     }
   }
 
   // Receive buffer data to other ranks
-  int *receiveBufferCount = (int *)malloc(sizeof(int) * nprocs);
+  unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
+
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
       MPI_Request request1, request2;
       MPI_Status status1, status2;
 
-      MPI_Irecv(&receiveBufferCount[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
       MPI_Wait(&request1, &status1);
 
       MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
@@ -152,6 +172,14 @@ int main(int argc, char **argv) {
       }
     }
   }
+
+  // Wait for the MPI ISEND
+  for(int i = 0; i < nprocs; i++) {
+    if(i != my_rank) {
+      MPI_Wait(&request[i][0], &status[i][0]);
+      MPI_Wait(&request[i][1], &status[i][1]);
+    }
+  } 
 
   // End data distribution time
   MPI_Barrier(MPI_COMM_WORLD);

@@ -130,43 +130,37 @@ int main(int argc, char **argv) {
     }
     if (i != my_rank) {
 
-      MPI_Send(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD);
+      MPI_Request request1, request2;
+      MPI_Status status1, status2;
 
-      MPI_Send(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD);
+      MPI_Isend(&sendBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Isend(sendDataSetBuffer, sendBufferCount[i], MPI_INT, i, 0,
+              MPI_COMM_WORLD, &request2);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
 
   // Receive buffer data to other ranks
   unsigned int *receiveBufferCount = (unsigned int *)malloc(sizeof(unsigned int) * nprocs);
 
-  MPI_Request **request = (MPI_Request **)malloc(sizeof(MPI_Request*) * nprocs);
-  for (int i = 0; i < nprocs; i++) {
-    request[i] = (MPI_Request *)malloc(sizeof(MPI_Request) * 2);
-  }
-
-  MPI_Status **status = (MPI_Status **)malloc(sizeof(MPI_Status*) * nprocs);
-  for (int i = 0; i < nprocs; i++) {
-    status[i] = (MPI_Status *)malloc(sizeof(MPI_Status) * 2);
-  }
-
   for (int i = 0; i < nprocs; i++) {
     if (i != my_rank) {
+      MPI_Request request1, request2;
+      MPI_Status status1, status2;
 
-      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request[i][0]);
-
-      MPI_Wait(&request[i][0], &status[i][0]);
+      MPI_Irecv(&receiveBufferCount[i], 1, MPI_UNSIGNED, i, 1, MPI_COMM_WORLD, &request1);
+      MPI_Wait(&request1, &status1);
 
       MPI_Irecv(recvDatasetBuffer, receiveBufferCount[i], MPI_INT, i, 0,
-               MPI_COMM_WORLD, &request[i][1]);
-      MPI_Wait(&request[i][1], &status[i][1]);
-
+               MPI_COMM_WORLD, &request2);
+      MPI_Wait(&request2, &status2);
 
       for (int j = 0; j < receiveBufferCount[i]; j++) {
         myDataSet[datasetCount] = recvDatasetBuffer[j];
         datasetCount++;
       }
     }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
 
   
