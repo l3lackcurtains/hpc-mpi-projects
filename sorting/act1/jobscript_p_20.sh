@@ -3,8 +3,8 @@
 #BATCH --job-name=sort_act1_mp2525_p20
 #SBATCH --output=/scratch/mp2525/sort_act1_mp2525_p20.txt	
 #SBATCH --error=/scratch/mp2525/sort_act1_mp2525_p20.err
-#SBATCH --time=20:00
-#SBATCH --mem=0
+#SBATCH --time=5:00
+#SBATCH --mem=20000
 #SBATCH --nodes=1
 #SBATCH --ntasks=20
 #SBATCH --cpus-per-task=1

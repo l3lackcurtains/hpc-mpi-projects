@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
         datasetCount += 1;
       }
 
-      // Wait for the asyncgronous send
+      // Wait for the asynchronous send
       // Also, avoids the error of rank not been terminated properly
       MPI_Wait(&request1, &status1);
       MPI_Wait(&request2, &status2);
