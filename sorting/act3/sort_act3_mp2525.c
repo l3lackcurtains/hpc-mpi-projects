@@ -253,32 +253,6 @@ int main(int argc, char **argv) {
   * *****************************************
   */
 
-  double localDistributionTime = t2 - t1;
-  double localSortingTime = t3 - t2;
-  double localTotalTime = t3 - t0;
-
-  MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
-             0, MPI_COMM_WORLD);
-
-  MPI_Reduce(&localSortingTime, &sortingTime, 1, MPI_DOUBLE, MPI_MAX, 0,
-             MPI_COMM_WORLD);
-
-  MPI_Reduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_MAX, 0,
-             MPI_COMM_WORLD);
-
-  if (my_rank == 0) {
-    printf("#######################################\n");
-    printf("Time to distribute data: %f\n", distributionTime);
-    printf("Time to Sort the data: %f\n", sortingTime);
-    printf("TOTAL time taken: %f", totalTime);
-    printf("\n#######################################\n");
-  }
-
-  /******************************************
-  * Global time calculation
-  * *****************************************
-  */
-
   // Calculate local distribution time
   double localDistributionTime = t2 - t1;
 
