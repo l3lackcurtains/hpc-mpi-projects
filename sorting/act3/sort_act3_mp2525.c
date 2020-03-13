@@ -52,21 +52,26 @@ int main(int argc, char **argv) {
   * *****************************************
   */
 
+  // Calculate local sum in a rank
   localSum = 0;
   for (int i = 0; i < localN; i++) {
     localSum += data[i];
   }
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+             MPI_COMM_WORLD);
 
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-
-  // Print global sum by rank 0
+  // Print global sum from rank 0
   if (my_rank == 0) {
     printf("#######################################\n");
     printf("Global Sum before sorting: %lu", globalSum);
     printf("\n#######################################\n");
   }
+
+  // Start the total time calculation
+  MPI_Barrier(MPI_COMM_WORLD);
+  t0 = MPI_Wtime();
 
   /******************************************
   * Generating Histogram, Range Calculation
@@ -74,16 +79,17 @@ int main(int argc, char **argv) {
   * *****************************************
   */
 
-  // Start data distribution time
-  MPI_Barrier(MPI_COMM_WORLD);
-  t0 = MPI_Wtime();
+  // Global Data Counter maintains the frequency of data in all ranks
+  long unsigned int *globalDataCounter =
+      (long unsigned int *)malloc(sizeof(long unsigned int) * MAXVAL);
 
-  long unsigned int *globalDataCounter = (long unsigned int *)malloc(sizeof(long unsigned int) * MAXVAL);
+  // Data Counter maintains the frequency of data in a rank
+  long unsigned int *dataCounter =
+      (long unsigned int *)malloc(sizeof(long unsigned int) * MAXVAL);
 
-  long unsigned int *dataCounter = (long unsigned int *)malloc(sizeof(long unsigned int) * MAXVAL);
-
-  long unsigned int **dataRange = (long unsigned int **)malloc(sizeof(long unsigned int *) * nprocs);
-
+  // Allocate memory for data range
+  long unsigned int **dataRange =
+      (long unsigned int **)malloc(sizeof(long unsigned int *) * nprocs);
   for (int i = 0; i < nprocs; i++) {
     dataRange[i] = (long unsigned int *)malloc(sizeof(long unsigned int) * 2);
   }
@@ -94,45 +100,69 @@ int main(int argc, char **argv) {
     globalDataCounter[i] = 0;
   }
 
+  // Rank computes frequency of data in dataCounter
   for (int i = 0; i < localN; i++) {
     dataCounter[data[i]] += 1;
   }
 
+  // Send the dataCounter to rank 0 for global data counter calculation
   if (my_rank != 0) {
     MPI_Send(dataCounter, MAXVAL, MPI_UNSIGNED_LONG, 0, 2, MPI_COMM_WORLD);
   }
 
+  // Rank 0 receives data counter from other ranks and calculate global data
+  // counter
   if (my_rank == 0) {
     for (int i = 0; i < nprocs; i++) {
+      // If the rank is not 0, receive dataCounter and update it
       if (i != my_rank) {
         MPI_Status status;
-        MPI_Recv(dataCounter, MAXVAL, MPI_UNSIGNED_LONG, i, 2, MPI_COMM_WORLD, &status);
+        MPI_Recv(dataCounter, MAXVAL, MPI_UNSIGNED_LONG, i, 2, MPI_COMM_WORLD,
+                 &status);
       }
+
+      // for all ranks, set glocaldatacounter from datacounter
       for (int i = 0; i < MAXVAL; i++) {
         globalDataCounter[i] += dataCounter[i];
       }
     }
 
+    // Set the percentage of data distribution in each rank
     long unsigned int distributionPercentage = N / nprocs;
+
+    // Distribution Range mover to set range for each ranks in a loop
     long unsigned int distributionRangeMover = distributionPercentage;
+
+    // Datacounter count data until maxval in a loop
     long unsigned int dataCounter = 0;
+
+    // Range min is the minimum value of range
     long unsigned int rangeMin = 0;
-    long unsigned int procCounter = 0;
-    for (long unsigned int j = 0; j < MAXVAL && procCounter < nprocs; j++) {
+
+    // Rank counter is to set range for each rank incrementally
+    long unsigned int rankCounter = 0;
+
+    for (long unsigned int j = 0; j < MAXVAL && rankCounter < nprocs; j++) {
+      // Datacounter is updated with the frequency value in flobal data counter
       dataCounter += globalDataCounter[j];
-      if (dataCounter >= distributionRangeMover && procCounter != nprocs - 1) {
-        dataRange[procCounter][0] = rangeMin;
-        dataRange[procCounter][1] = j;
+
+      // Set the range, if the datacounter exceeds the distribution range mover
+      if (dataCounter >= distributionRangeMover && rankCounter != nprocs - 1) {
+        dataRange[rankCounter][0] = rangeMin;
+        dataRange[rankCounter][1] = j;
         rangeMin = j;
         distributionRangeMover += distributionPercentage;
-        procCounter++;
-      } else {
-        dataRange[procCounter][0] = rangeMin;
-        dataRange[procCounter][1] = MAXVAL;
+        rankCounter++;
+      }
+      // For last rank, adjust rank to accomodate leftover data
+      else {
+        dataRange[rankCounter][0] = rangeMin;
+        dataRange[rankCounter][1] = MAXVAL;
       }
     }
   }
 
+  // Broadcast the data range to all the ranks
   for (int i = 0; i < nprocs; i++) {
     MPI_Bcast(dataRange[i], 2, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
   }
@@ -141,49 +171,69 @@ int main(int argc, char **argv) {
   * Data Distribution
   * *****************************************
   */
+
+  // Start time calculation for bucketing / data distribution process
   MPI_Barrier(MPI_COMM_WORLD);
   t1 = MPI_Wtime();
 
+  // dataset count maintains the size of mydataset for a rank
   long unsigned int datasetCount = 0;
-  for(int i = 0; i < nprocs; i++) {
-    if(i == my_rank) {
-      for(long unsigned int j = 0; j < localN; j++) {
-        if(data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
+
+  // Iterate over all the ranks to set mydataset and sending & receiving data.
+  for (int i = 0; i < nprocs; i++) {
+    // Set mydataset if the data is on its own range
+    if (i == my_rank) {
+      for (long unsigned int j = 0; j < localN; j++) {
+        if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
           myDataSet[datasetCount] = data[j];
           datasetCount += 1;
         }
       }
-    } else {
+    }
+    // Else, collect data, send the data and receive from rank i
+    else {
+      // sendcount and receivecount maintains the size of data being sent and
+      // received
       long unsigned int sendCount = 0;
       long unsigned int receiveCount = 0;
-      for(long unsigned int j = 0; j < localN; j++) {
-        if(data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
+
+      // collect data to be sent in sendDataSetBuffer
+      for (long unsigned int j = 0; j < localN; j++) {
+        if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
           sendDataSetBuffer[sendCount] = data[j];
           sendCount += 1;
         }
       }
-      
-      // Send data
+
+      // send data in sendDataSetBuffer to rank i
       MPI_Request request1, request2;
       MPI_Status status1, status2;
-      MPI_Isend(&sendCount, 1, MPI_UNSIGNED_LONG, i, 0, MPI_COMM_WORLD, &request1);
-      MPI_Isend(sendDataSetBuffer, sendCount, MPI_INT, i, 1, MPI_COMM_WORLD, &request2);
+      MPI_Isend(&sendCount, 1, MPI_UNSIGNED_LONG, i, 0, MPI_COMM_WORLD,
+                &request1);
+      MPI_Isend(sendDataSetBuffer, sendCount, MPI_INT, i, 1, MPI_COMM_WORLD,
+                &request2);
 
-      // Receive data
+      // Receive data from rank i, set into recvDataSetBuffer
       MPI_Status status3, status4;
-      MPI_Recv(&receiveCount, 1, MPI_UNSIGNED_LONG, i, 0, MPI_COMM_WORLD, &status3);
-      MPI_Recv(recvDatasetBuffer, receiveCount, MPI_INT, i, 1, MPI_COMM_WORLD, &status4);
-      for(long unsigned int x = 0; x < receiveCount; x++) {
+      MPI_Recv(&receiveCount, 1, MPI_UNSIGNED_LONG, i, 0, MPI_COMM_WORLD,
+               &status3);
+      MPI_Recv(recvDatasetBuffer, receiveCount, MPI_INT, i, 1, MPI_COMM_WORLD,
+               &status4);
+
+      // Update myDataSet by adding data from receiveDataSetBuffer
+      for (long unsigned int x = 0; x < receiveCount; x++) {
         myDataSet[datasetCount] = recvDatasetBuffer[x];
         datasetCount += 1;
       }
 
+      // Wait for the asyncgronous send
+      // Also, avoids the error of rank not been terminated properly
       MPI_Wait(&request1, &status1);
       MPI_Wait(&request2, &status2);
     }
   }
 
- // End data distribution time
+  // End data distribution time and start data sorting time
   MPI_Barrier(MPI_COMM_WORLD);
   t2 = MPI_Wtime();
 
@@ -225,18 +275,56 @@ int main(int argc, char **argv) {
   }
 
   /******************************************
+  * Global time calculation
+  * *****************************************
+  */
+
+  // Calculate local distribution time
+  double localDistributionTime = t2 - t1;
+
+  // Calculate local sorting time
+  double localSortingTime = t3 - t2;
+
+  // Calculate local total time
+  double localTotalTime = t3 - t0;
+
+  // Send the local distribution time data and reduce into max value in rank 0
+  MPI_Reduce(&localDistributionTime, &distributionTime, 1, MPI_DOUBLE, MPI_MAX,
+             0, MPI_COMM_WORLD);
+
+  // Send the local sorting time data and reduce into max value in rank 0
+  MPI_Reduce(&localSortingTime, &sortingTime, 1, MPI_DOUBLE, MPI_MAX, 0,
+             MPI_COMM_WORLD);
+
+  // Send the local total time data and reduce into max value in rank 0
+  MPI_Reduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_MAX, 0,
+             MPI_COMM_WORLD);
+
+  // Display max time measurements from rank 0
+  if (my_rank == 0) {
+    printf("#######################################\n");
+    printf("Time to distribute data: %f\n", distributionTime);
+    printf("Time to Sort the data: %f\n", sortingTime);
+    printf("TOTAL time taken: %f", totalTime);
+    printf("\n#######################################\n");
+  }
+
+  /******************************************
   * Global Sum Calculation after sorting
   * *****************************************
   */
+
+  // Calculate local sum in a rank
   localSum = 0;
-  for (int i = 0; i < datasetCount; i++) {
+  for (long unsigned int i = 0; i < datasetCount; i++) {
     localSum += myDataSet[i];
   }
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
-  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+             MPI_COMM_WORLD);
 
-  // Print global sum by rank 0
+  // Print global sum from rank 0
   if (my_rank == 0) {
     printf("#######################################\n");
     printf("Global Sum after sorting: %lu", globalSum);
