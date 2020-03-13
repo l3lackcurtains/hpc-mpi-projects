@@ -82,19 +82,19 @@ int main(int argc, char **argv) {
   */
 
   // Allocate memory for data range
-  long unsigned int **dataRange =
-      (long unsigned int **)malloc(sizeof(long unsigned int *) * nprocs);
+  unsigned int **dataRange =
+      (unsigned int **)malloc(sizeof(unsigned int *) * nprocs);
   for (int i = 0; i < nprocs; i++) {
-    dataRange[i] = (long unsigned int *)malloc(sizeof(long unsigned int) * 2);
+    dataRange[i] = (unsigned int *)malloc(sizeof(unsigned int) * 2);
   }
 
   // Calculate data ranges in rank 0
   if (my_rank == 0) {
     // Range distance is the interval between range
-    long unsigned int rangeDistance = MAXVAL / nprocs;
+    unsigned int rangeDistance = MAXVAL / nprocs;
 
     // Range mover is iterated over nprocs to set the range
-    long unsigned int rangeMover = 0;
+    unsigned int rangeMover = 0;
 
     for (int i = 0; i < nprocs; i++) {
       dataRange[i][0] = rangeMover;
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
 
   // Broadcast the data range to all the ranks
   for (int i = 0; i < nprocs; i++) {
-    MPI_Bcast(dataRange[i], 2, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+    MPI_Bcast(dataRange[i], 2, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
   }
 
   /******************************************
@@ -118,13 +118,13 @@ int main(int argc, char **argv) {
   t1 = MPI_Wtime();
 
   // dataset count maintains the size of mydataset for a rank
-  long unsigned int datasetCount = 0;
+  unsigned int datasetCount = 0;
 
   // Iterate over all the ranks to set mydataset and sending & receiving data.
   for (int i = 0; i < nprocs; i++) {
     // Set mydataset if the data is on its own range
     if (i == my_rank) {
-      for (long unsigned int j = 0; j < localN; j++) {
+      for (int j = 0; j < localN; j++) {
         if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
           myDataSet[datasetCount] = data[j];
           datasetCount += 1;
@@ -135,11 +135,11 @@ int main(int argc, char **argv) {
     else {
       // sendcount and receivecount maintains the size of data being sent and
       // received
-      long unsigned int sendCount = 0;
-      long unsigned int receiveCount = 0;
+      unsigned int sendCount = 0;
+      unsigned int receiveCount = 0;
 
       // collect data to be sent in sendDataSetBuffer
-      for (long unsigned int j = 0; j < localN; j++) {
+      for (int j = 0; j < localN; j++) {
         if (data[j] >= dataRange[i][0] && data[j] < dataRange[i][1]) {
           sendDataSetBuffer[sendCount] = data[j];
           sendCount += 1;
@@ -149,20 +149,20 @@ int main(int argc, char **argv) {
       // send data in sendDataSetBuffer to rank i
       MPI_Request request1, request2;
       MPI_Status status1, status2;
-      MPI_Isend(&sendCount, 1, MPI_UNSIGNED_LONG, i, 0, MPI_COMM_WORLD,
+      MPI_Isend(&sendCount, 1, MPI_UNSIGNED, i, 0, MPI_COMM_WORLD,
                 &request1);
       MPI_Isend(sendDataSetBuffer, sendCount, MPI_INT, i, 1, MPI_COMM_WORLD,
                 &request2);
 
       // Receive data from rank i, set into recvDataSetBuffer
       MPI_Status status3, status4;
-      MPI_Recv(&receiveCount, 1, MPI_UNSIGNED_LONG, i, 0, MPI_COMM_WORLD,
+      MPI_Recv(&receiveCount, 1, MPI_UNSIGNED, i, 0, MPI_COMM_WORLD,
                &status3);
       MPI_Recv(recvDatasetBuffer, receiveCount, MPI_INT, i, 1, MPI_COMM_WORLD,
                &status4);
 
       // Update myDataSet by adding data from receiveDataSetBuffer
-      for (long unsigned int x = 0; x < receiveCount; x++) {
+      for (int x = 0; x < receiveCount; x++) {
         myDataSet[datasetCount] = recvDatasetBuffer[x];
         datasetCount += 1;
       }
@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
 
   // Calculate local sum in a rank
   localSum = 0;
-  for (long unsigned int i = 0; i < datasetCount; i++) {
+  for (int i = 0; i < datasetCount; i++) {
     localSum += myDataSet[i];
   }
 
