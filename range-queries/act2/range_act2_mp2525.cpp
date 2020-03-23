@@ -102,6 +102,113 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Write code here
+  double tStart, tEnd, t1, localTotalTime, totalTime, localTreeCreationTime,
+      treeCreationTime, localSearchingTime, searchingTime;
+  long unsigned int localSum, globalSum;
+
+  RTree<int, double, 2, double> tree;
+
+  // Start the time
+  MPI_Barrier(MPI_COMM_WORLD);
+  tStart = MPI_Wtime();
+
+  /******************************************
+   * Building tree for every data point
+   *******************************************
+   */
+
+  for (int i = 0; i < localN; i++) {
+    Rect rectangle = Rect(data[i].x, data[i].y, data[i].x, data[i].y);
+    tree.Insert(rectangle.min, rectangle.max, i);
+  }
+
+  // End tree creation time && Start searching time
+  MPI_Barrier(MPI_COMM_WORLD);
+  t1 = MPI_Wtime();
+
+  /******************************************
+   * Range Queries in each ranks
+   *******************************************
+   */
+
+  for (int i = 0; i < localQ; i++) {
+    Rect search_rect = Rect(queries[i].x_min, queries[i].y_min,
+                            queries[i].x_max, queries[i].y_max);
+
+    unsigned int nhits =
+        tree.Search(search_rect.min, search_rect.max, MySearchCallback, NULL);
+
+    numResults[i] = nhits;
+  }
+
+  // End the time
+  MPI_Barrier(MPI_COMM_WORLD);
+  tEnd = MPI_Wtime();
+
+  /******************************************
+   * Time Calculation
+   *******************************************
+   */
+
+  // Calculate local total time
+  localTreeCreationTime = t1 - tStart;
+
+  // Calculate local total time
+  localSearchingTime = tEnd - t1;
+
+  // Calculate local total time
+  localTotalTime = tEnd - tStart;
+
+  // Send the local tree creation time data and reduce into max value in rank 0
+  MPI_Reduce(&localTreeCreationTime, &treeCreationTime, 1, MPI_DOUBLE, MPI_MAX,
+             0, MPI_COMM_WORLD);
+
+  // Send the local searching time data and reduce into max value in rank 0
+  MPI_Reduce(&localSearchingTime, &searchingTime, 1, MPI_DOUBLE, MPI_MAX, 0,
+             MPI_COMM_WORLD);
+
+  // Send the local total time data and reduce into max value in rank 0
+  MPI_Reduce(&localTotalTime, &totalTime, 1, MPI_DOUBLE, MPI_MAX, 0,
+             MPI_COMM_WORLD);
+
+  // Display max time measurements from rank 0
+  if (my_rank == 0) {
+    printf("#######################################\n");
+    printf("Tree creation time: %f\n", treeCreationTime);
+    printf("Searching time: %f\n", searchingTime);
+    printf("TOTAL time taken: %f", totalTime);
+    printf("\n#######################################\n");
+  }
+
+  /******************************************
+   * Global Sum Calculation
+   *******************************************
+   */
+
+  localSum = 0;
+  for (int i = 0; i < localQ; i++) {
+    localSum += numResults[i];
+  }
+
+  // Send localsum from all ranks to 0 and reduce the sum into global sum
+  MPI_Reduce(&localSum, &globalSum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+             MPI_COMM_WORLD);
+
+  // Print global sum from rank 0
+  if (my_rank == 0) {
+    printf("#######################################\n");
+    printf("Global Sum: %lu", globalSum);
+    printf("\n#######################################\n");
+  }
+
+  /******************************************
+   * Free memory allocations
+   *******************************************
+   */
+
+  free(numResults);
+  free(data);
+  free(queries);
 
   MPI_Finalize();
   return 0;

@@ -14,4 +14,4 @@ module load openmpi
 
 mpicc -O3 range_act1_mp2525.c -lm -o range_act1_mp2525.out -std=c99
 
-srun ./range_act1_mp2525.out
+srun ./range_act1_mp2525.out 2000000 100000

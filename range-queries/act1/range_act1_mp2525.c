@@ -78,27 +78,34 @@ int main(int argc, char **argv) {
   double tStart, tEnd, localTotalTime, totalTime;
   long unsigned int localSum, globalSum;
 
-  long unsigned int *hitsArray =
-      (long unsigned int *)malloc(sizeof(long unsigned int) * localQ);
+  /******************************************
+   * Range Queries in each ranks
+   *******************************************
+   */
 
   // Start the time
   MPI_Barrier(MPI_COMM_WORLD);
   tStart = MPI_Wtime();
 
   for (int i = 0; i < localQ; i++) {
-    long unsigned int hits = 0;
+    unsigned int hits = 0;
     for (int j = 0; j < localN; j++) {
       if (data[j].x >= queries[i].x_min && data[j].x <= queries[i].x_max &&
           data[j].y >= queries[i].y_min && data[j].y <= queries[i].y_max) {
         hits++;
       }
     }
-    hitsArray[i] = hits;
+    numResults[i] = hits;
   }
 
   // End the time
   MPI_Barrier(MPI_COMM_WORLD);
   tEnd = MPI_Wtime();
+
+  /******************************************
+   * Time Calculation
+   *******************************************
+   */
 
   // Calculate local total time
   localTotalTime = tEnd - tStart;
@@ -114,9 +121,14 @@ int main(int argc, char **argv) {
     printf("\n#######################################\n");
   }
 
+  /******************************************
+   * Global Sum Calculation
+   *******************************************
+   */
+
   localSum = 0;
   for (int i = 0; i < localQ; i++) {
-    localSum += hitsArray[i];
+    localSum += numResults[i];
   }
 
   // Send localsum from all ranks to 0 and reduce the sum into global sum
@@ -129,6 +141,15 @@ int main(int argc, char **argv) {
     printf("Global Sum: %lu", globalSum);
     printf("\n#######################################\n");
   }
+
+  /******************************************
+   * Free memory allocations
+   *******************************************
+   */
+
+  free(numResults);
+  free(data);
+  free(queries);
 
   MPI_Finalize();
   return 0;
