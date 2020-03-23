@@ -5,8 +5,9 @@
 #SBATCH --error=/scratch/mp2525/range_act2_mp2525_p1.err
 #SBATCH --time=120:00
 #SBATCH --mem=0
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
+#SBATCH --nodes=2
+#SBATCH --ntasks=20
+#SBATCH --ntasks-per-node=10
 #SBATCH --cpus-per-task=1
 #SBATCH --exclusive
 
