@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -C sb
+#SBATCH -C sl
 #BATCH --job-name=range_exp_mp2525_p1
 #SBATCH --output=/scratch/mp2525/range_exp_mp2525_p1.txt	
 #SBATCH --error=/scratch/mp2525/range_exp_mp2525_p1.err
