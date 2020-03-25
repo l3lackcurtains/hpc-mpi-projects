@@ -1,12 +1,13 @@
 #!/bin/bash
-#SBATCH -C sb
+#SBATCH -C sl
 #BATCH --job-name=range_exp_mp2525_p4
 #SBATCH --output=/scratch/mp2525/range_exp_mp2525_p4.txt	
 #SBATCH --error=/scratch/mp2525/range_exp_mp2525_p4.err
-#SBATCH --time=120:00
+#SBATCH --time=20:00
 #SBATCH --mem=0
-#SBATCH --nodes=1
 #SBATCH --ntasks=4
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=1
 #SBATCH --exclusive
 
