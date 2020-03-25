@@ -6,8 +6,8 @@
 #SBATCH --time=20:00
 #SBATCH --mem=0
 #SBATCH --ntasks=20
-#SBATCH --nodes=4
-#SBATCH --ntasks-per-node=5
+#SBATCH --nodes=10
+#SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=1
 #SBATCH --exclusive
 
