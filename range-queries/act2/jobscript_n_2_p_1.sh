@@ -3,8 +3,8 @@
 #BATCH --job-name=range_act2_mp2525_n2_p1
 #SBATCH --output=/scratch/mp2525/range_act2_mp2525_n2_p1.txt	
 #SBATCH --error=/scratch/mp2525/range_act2_mp2525_n2_p1.err
-#SBATCH --time=120:00
-#SBATCH --mem=0
+#SBATCH --time=15:00
+#SBATCH --mem=20000
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1

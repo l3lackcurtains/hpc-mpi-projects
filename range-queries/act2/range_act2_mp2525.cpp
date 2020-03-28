@@ -127,7 +127,8 @@ int main(int argc, char **argv) {
   t1 = MPI_Wtime();
 
   /******************************************
-   * Range Queries in each ranks
+   * Range Queries in each ranks by searching
+   * tree
    *******************************************
    */
 
