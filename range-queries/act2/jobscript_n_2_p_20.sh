@@ -4,7 +4,7 @@
 #SBATCH --output=/scratch/mp2525/range_act2_mp2525_n2_p20.txt	
 #SBATCH --error=/scratch/mp2525/range_act2_mp2525_n2_p20.err
 #SBATCH --time=15:00
-#SBATCH --mem=20000
+#SBATCH --mem=40000
 #SBATCH --nodes=2
 #SBATCH --ntasks=20
 #SBATCH --ntasks-per-node=10

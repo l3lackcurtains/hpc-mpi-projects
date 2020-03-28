@@ -4,7 +4,7 @@
 #SBATCH --output=/scratch/mp2525/range_act1_mp2525_p16.txt	
 #SBATCH --error=/scratch/mp2525/range_act1_mp2525_p16.err
 #SBATCH --time=15:00
-#SBATCH --mem=20000
+#SBATCH --mem=40000
 #SBATCH --nodes=1
 #SBATCH --ntasks=16
 #SBATCH --cpus-per-task=1
