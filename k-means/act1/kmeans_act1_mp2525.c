@@ -83,54 +83,83 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Write code here
-  int localN = N / nprocs;
 
-  if (N % nprocs != 0 && my_rank == nprocs - 1) {
-    localN = N / nprocs + N % nprocs;
-  } else {
-    localN = N / nprocs;
-  }
+  // Initialize time variables
+  double tStart, tEnd, t0, t1, t2;
 
-  /******************************************
-   * Assign data range to all ranks by rank 0
-   *******************************************
+  // Initialize local time variables
+  double localDistanceCalculationTime = 0.0;
+  double localCentroidUpdateTime = 0.0;
+  double localTotalTime;
+
+  // Initialize global time variables
+  double globalDistanceCalculationTime, globalCentroidUpdateTime,
+      globalTotalTime;
+
+  // Start the total time
+  tStart = MPI_Wtime();
+
+  /**
+   * **************************************************
+   *  Assign data range to all ranks by rank 0
+   * **************************************************
    */
 
-  int startingRange;
-  int *startingRanges = (int *)malloc(sizeof(int) * nprocs);
+  int startRange, endRange;
+  int *startRanges = (int *)malloc(sizeof(int) * nprocs);
+  int *endRanges = (int *)malloc(sizeof(int) * nprocs);
   if (my_rank == 0) {
     for (int i = 0; i < nprocs; i++) {
-      startingRanges[i] = N / nprocs * i;
+      startRanges[i] = N / nprocs * i;
+      if (N % nprocs != 0 && i == nprocs - 1) {
+        endRanges[i] = startRanges[i] + N / nprocs + N % nprocs;
+      } else {
+        endRanges[i] = startRanges[i] + N / nprocs;
+      }
     }
   }
-  MPI_Scatter(startingRanges, 1, MPI_INT, &startingRange, 1, MPI_INT, 0,
+  MPI_Scatter(startRanges, 1, MPI_INT, &startRange, 1, MPI_INT, 0,
               MPI_COMM_WORLD);
-  int endRange = startingRange + localN;
+  MPI_Scatter(endRanges, 1, MPI_INT, &endRange, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  /******************************************
-   * Initialize centroids with first K points
-   *******************************************
-   */
+  // Allocate memory for centroids and assign with first K values
   double **centroids = (double **)calloc(sizeof(double *), KMEANS);
   for (int i = 0; i < KMEANS; i++) {
     centroids[i] = (double *)calloc(sizeof(double), DIM);
     centroids[i] = dataset[i];
   }
 
+  // Define clusters and global cluster count
   int *clusters = (int *)calloc(sizeof(int), N);
-
   int *globalClusterCount = (int *)calloc(sizeof(int), KMEANS);
 
-  for (int z = 0; z < KMEANSITERS; z++) {
+  /**
+   * **************************************************
+   * Iterating K-Mean algorithm by KMEANSITERS times
+   * **************************************************
+   */
 
+  for (int z = 0; z < KMEANSITERS; z++) {
+    // Allocate memory for partial mean and initialize with 0 in each iteration
     double **partialMean = (double **)calloc(sizeof(double *), KMEANS);
     for (int i = 0; i < KMEANS; i++) {
       partialMean[i] = (double *)calloc(sizeof(double), DIM);
     }
-    
+
+    // Define local cluster count and assign with 0 in each iteration
     int *localClusterCount = (int *)calloc(sizeof(int), KMEANS);
 
-    for (int i = startingRange; i < endRange; i++) {
+    /**
+     * **************************************************
+     * Distance Calculation
+     * **************************************************
+     */
+
+    // Start distance calculation time for Zth iteration
+    MPI_Barrier(MPI_COMM_WORLD);
+    t0 = MPI_Wtime();
+
+    for (int i = startRange; i < endRange; i++) {
       double *distances = (double *)calloc(sizeof(double), KMEANS);
       for (int j = 0; j < KMEANS; j++) {
         double *centroid = centroids[j];
@@ -145,45 +174,85 @@ int main(int argc, char **argv) {
           clusterIndex = x;
         }
       }
-
       clusters[i] = clusterIndex;
       localClusterCount[clusterIndex] += 1;
     }
 
-    // Send total cluster count
+    // end distance calculation time for Zth iteration
+    // Also, start time for centroid update
+    MPI_Barrier(MPI_COMM_WORLD);
+    t1 = MPI_Wtime();
+
+    // calculate local distance calculation time
+    localDistanceCalculationTime += t1 - t0;
+
+    /**
+     * **************************************************
+     * Updating centroids and synchronization between ranks
+     * **************************************************
+     */
+
+    // Reduce local cluster count into sum to get global cluster count
     MPI_Allreduce(localClusterCount, globalClusterCount, KMEANS, MPI_INT,
                   MPI_SUM, MPI_COMM_WORLD);
 
-    // Calculate new centroid
-    for (int i = startingRange; i < endRange; i++) {
+    // Calculate the partial mean from points in a cluster
+    for (int i = startRange; i < endRange; i++) {
       for (int j = 0; j < KMEANS; j++) {
         if (clusters[i] == j) {
           for (int k = 0; k < DIM; k++) {
-            partialMean[j][k] += dataset[i][k];
+            partialMean[j][k] += dataset[i][k] / globalClusterCount[j];
           }
         }
       }
     }
 
+    // Reduce partial mean into sum to get centroids
     for (int x = 0; x < KMEANS; x++) {
-      for (int y = 0; y < DIM; y++) {
-        partialMean[x][y] = partialMean[x][y] / globalClusterCount[x];
-      }
+      MPI_Allreduce(partialMean[x], centroids[x], DIM, MPI_DOUBLE, MPI_SUM,
+                    MPI_COMM_WORLD);
     }
 
-    for (int x = 0; x < KMEANS; x++) {
-    MPI_Allreduce(partialMean[x], centroids[x], DIM, MPI_DOUBLE,
-                  MPI_SUM, MPI_COMM_WORLD);
-    }
+    // end centroid update time for Zth iteration
+    MPI_Barrier(MPI_COMM_WORLD);
+    t2 = MPI_Wtime();
+
+    // calculate local centroid update time
+    localCentroidUpdateTime += t2 - t1;
   }
 
+  // Stop total time
+  MPI_Barrier(MPI_COMM_WORLD);
+  tEnd = MPI_Wtime();
+
+  // calculate local total time
+  localTotalTime = tEnd - tStart;
+
+  // Send local distance Calculation time data and reduce into max value
+  MPI_Allreduce(&localDistanceCalculationTime, &globalDistanceCalculationTime,
+                1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  // Send local centroid update time data and reduce into max value
+  MPI_Allreduce(&localCentroidUpdateTime, &globalCentroidUpdateTime, 1,
+                MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  // Send local total time data and reduce into max value
+  MPI_Allreduce(&localTotalTime, &globalTotalTime, 1, MPI_DOUBLE, MPI_MAX,
+                MPI_COMM_WORLD);
+
   if (my_rank == 0) {
+    /*
+    printf("#######################################\n");
     for (int j = 0; j < KMEANS; j++) {
       printf("Cluster %d: %d \n", j, globalClusterCount[j]);
     }
+    */
+    printf("#######################################\n");
+    printf("Distance calculation time: %f\n", globalDistanceCalculationTime);
+    printf("Centroid update time: %f\n", globalCentroidUpdateTime);
+    printf("TOTAL time taken: %f", globalTotalTime);
+    printf("\n#######################################\n");
   }
-
-  
 
   // free dataset
   for (int i = 0; i < N; i++) {

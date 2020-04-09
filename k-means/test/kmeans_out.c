@@ -170,7 +170,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (my_rank == 0) {   
+  if (my_rank == 0) {
+    
     for(int i = 0; i < N; i++) {
       printf("%d, ", clusters[i]);
       
@@ -182,6 +183,18 @@ int main(int argc, char **argv) {
         }
       }
     }
+    
+   /*
+   for(int i = 0; i < KMEANS; i++) {     
+      for(int j = 0; j < DIM; j++) {
+        if(j == DIM-1) {
+          printf("%f\n", centroids[i][j]);
+        } else {
+          printf("%f, ", centroids[i][j]);
+        }
+      }
+    }
+    */
   }
 
   
