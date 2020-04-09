@@ -11,6 +11,6 @@
 
 module load openmpi
 
-mpicc -O3 kmeans_act1_mp2525.c -lm -o kmeans_act1_mp2525.out -std=c99
+mpicc -O3 kmeans_out.c -lm -o kmeans_out.out -std=c99
 
-srun ./kmeans_act1_mp2525.out 5159737 2 10 ../iono_57min_5.16Mpts_2D.txt
+srun ./kmeans_out.out 5159737 2 10 ../iono_57min_5.16Mpts_2D.txt
