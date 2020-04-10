@@ -3,8 +3,8 @@
 #BATCH --job-name=kmeans_act1_mp2525_p8_k50
 #SBATCH --output=/scratch/mp2525/kmeans_act1_mp2525_p8_k50.txt	
 #SBATCH --error=/scratch/mp2525/kmeans_act1_mp2525_p8_k50.err
-#SBATCH --time=15:00
-#SBATCH --mem=40000
+#SBATCH --time=30:00
+#SBATCH --mem=0
 #SBATCH --nodes=1
 #SBATCH --ntasks=8
 #SBATCH --exclusive
