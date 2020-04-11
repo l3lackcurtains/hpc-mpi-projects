@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
   MPI_Scatter(endRanges, 1, MPI_INT, &endRange, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   // Allocate memory for centroids and assign with first K values
-  double **centroids = (double **)calloc(sizeof(double *), KMEANS);
+  double **centroids = (double **)malloc(sizeof(double *) * KMEANS);
   for (int i = 0; i < KMEANS; i++) {
     centroids[i] = (double *)calloc(sizeof(double), DIM);
     centroids[i] = dataset[i];
@@ -139,15 +139,25 @@ int main(int argc, char **argv) {
    * **************************************************
    */
 
+  // Allocate memory for partial mean
+  double **partialMean = (double **)malloc(sizeof(double *) * KMEANS);
+  for (int i = 0; i < KMEANS; i++) {
+    partialMean[i] = (double *)calloc(sizeof(double), DIM);
+  }
+
+  // Define local cluster count 
+  int *localClusterCount = (int *)calloc(sizeof(int), KMEANS);
+
   for (int z = 0; z < KMEANSITERS; z++) {
-    // Allocate memory for partial mean and initialize with 0 in each iteration
-    double **partialMean = (double **)calloc(sizeof(double *), KMEANS);
+     // Initialize partial mean with 0 in each iteration
+     // Initialize local cluster count with 0 in each iteration
     for (int i = 0; i < KMEANS; i++) {
-      partialMean[i] = (double *)calloc(sizeof(double), DIM);
+      for (int j = 0; j < DIM; j++) {
+        partialMean[i][j] = 0.0;
+      }
+      localClusterCount[i] = 0;
     }
 
-    // Define local cluster count and assign with 0 in each iteration
-    int *localClusterCount = (int *)calloc(sizeof(int), KMEANS);
 
     /**
      * **************************************************
@@ -247,6 +257,7 @@ int main(int argc, char **argv) {
       printf("Cluster %d: %d \n", j, globalClusterCount[j]);
     }
     */
+
     printf("#######################################\n");
     printf("Distance calculation time: %f\n", globalDistanceCalculationTime);
     printf("Centroid update time: %f\n", globalCentroidUpdateTime);
@@ -254,12 +265,37 @@ int main(int argc, char **argv) {
     printf("\n#######################################\n");
   }
 
+  /**
+   * **************************************************
+   * Free allocated memories
+   * **************************************************
+   */
+
   // free dataset
   for (int i = 0; i < N; i++) {
     free(dataset[i]);
   }
-
   free(dataset);
+
+  free(startRanges);
+  free(endRanges);
+
+  /*
+  for (int i = 0; i < KMEANS; i++) {
+    free(centroids[i]);
+  }
+  free(centroids);
+  */
+
+  for (int i = 0; i < KMEANS; i++) {
+    free(partialMean[i]);
+  }
+  free(partialMean);
+
+  free(globalClusterCount);
+  free(localClusterCount);
+  free(clusters);
+  
   MPI_Finalize();
 
   return 0;

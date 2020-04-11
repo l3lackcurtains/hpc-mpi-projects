@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH -C sl
-#BATCH --job-name=kmeans_act1_mp2525_p1_k50
-#SBATCH --output=/scratch/mp2525/kmeans_act1_mp2525_p1_k50.txt	
-#SBATCH --error=/scratch/mp2525/kmeans_act1_mp2525_p1_k50.err
+#BATCH --job-name=kmeans_act1_mp2525_p32_k50
+#SBATCH --output=/scratch/mp2525/kmeans_act1_mp2525_p32_k50.txt	
+#SBATCH --error=/scratch/mp2525/kmeans_act1_mp2525_p32_k50.err
 #SBATCH --time=30:00
 #SBATCH --mem=0
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --nodes=2
+#SBATCH --ntasks=32
+#SBATCH --ntasks-per-node=16
 #SBATCH --exclusive
 
 module load openmpi
