@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
   // Allocate memory for centroids and assign with first K values
   double **centroids = (double **)malloc(sizeof(double *) * KMEANS);
   for (int i = 0; i < KMEANS; i++) {
-    centroids[i] = (double *)calloc(sizeof(double), DIM);
+    centroids[i] = (double *)malloc(sizeof(double) * DIM);
     centroids[i] = dataset[i];
   }
 
@@ -145,19 +145,18 @@ int main(int argc, char **argv) {
     partialMean[i] = (double *)calloc(sizeof(double), DIM);
   }
 
-  // Define local cluster count 
+  // Define local cluster count
   int *localClusterCount = (int *)calloc(sizeof(int), KMEANS);
 
   for (int z = 0; z < KMEANSITERS; z++) {
-     // Initialize partial mean with 0 in each iteration
-     // Initialize local cluster count with 0 in each iteration
+    // Initialize partial mean with 0 in each iteration
+    // Initialize local cluster count with 0 in each iteration
     for (int i = 0; i < KMEANS; i++) {
       for (int j = 0; j < DIM; j++) {
         partialMean[i][j] = 0.0;
       }
       localClusterCount[i] = 0;
     }
-
 
     /**
      * **************************************************
@@ -170,12 +169,16 @@ int main(int argc, char **argv) {
     t0 = MPI_Wtime();
 
     for (int i = startRange; i < endRange; i++) {
+
       double *distances = (double *)calloc(sizeof(double), KMEANS);
       for (int j = 0; j < KMEANS; j++) {
         double *centroid = centroids[j];
         double *point = dataset[i];
         distances[j] = computeDistance(centroid, point, DIM);
       }
+
+      // Get the minimum distance and assign point to cluster
+      // associated with the centroid
       double minDistance = distances[0];
       int clusterIndex = 0;
       for (int x = 0; x < KMEANS; x++) {
@@ -184,8 +187,11 @@ int main(int argc, char **argv) {
           clusterIndex = x;
         }
       }
+
+      // Assign cluster ID to point
       clusters[i] = clusterIndex;
       localClusterCount[clusterIndex] += 1;
+
     }
 
     // end distance calculation time for Zth iteration
@@ -263,6 +269,7 @@ int main(int argc, char **argv) {
     printf("Centroid update time: %f\n", globalCentroidUpdateTime);
     printf("TOTAL time taken: %f", globalTotalTime);
     printf("\n#######################################\n");
+    
   }
 
   /**
@@ -280,6 +287,7 @@ int main(int argc, char **argv) {
   free(startRanges);
   free(endRanges);
 
+  // Commented, because it produced some weird error
   /*
   for (int i = 0; i < KMEANS; i++) {
     free(centroids[i]);
@@ -295,7 +303,7 @@ int main(int argc, char **argv) {
   free(globalClusterCount);
   free(localClusterCount);
   free(clusters);
-  
+
   MPI_Finalize();
 
   return 0;
