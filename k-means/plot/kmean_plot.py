@@ -9,7 +9,7 @@ y = data['y'].to_numpy()
 
 color = data['cluster']
 
-plt.scatter(x, y, c=color, marker=".", linewidth=0.1)
+plt.scatter(x, y, c=color, marker=".", s=0.1)
 
 centroids_x = centroids['x'].to_numpy()
 centroids_y = centroids['y'].to_numpy()
@@ -23,6 +23,6 @@ plt.ylabel('y')
 plt.xlim(0, 360)
 plt.ylim(-90, 90)
 
-plt.savefig('scatter_plot.png')
+plt.savefig('scatter_plot.png', dpi=1000)
 
 plt.show()
